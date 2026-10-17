@@ -1,0 +1,1 @@
+window.QUEEN_CONFIG = {"shareBase": "https://haoyu-zhao.github.io/chessdemo/", "endpointSources": ["https://raw.githubusercontent.com/haoyu-zhao/chessdemo/connection/endpoint.json", "./endpoint.json"]};
