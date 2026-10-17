@@ -15,6 +15,7 @@ window.QueenAPI = (() => {
     if (resolving) return resolving;
     resolving = (async () => {
       for (const source of config.endpointSources) {
+        if (source !== config.endpointSources[0] && apiOrigin) return apiOrigin;
         try {
           const url = new URL(source, document.baseURI);
           url.searchParams.set('v', Math.floor(Date.now() / 10000));
