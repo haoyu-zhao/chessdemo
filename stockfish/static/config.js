@@ -1,0 +1,1 @@
+window.QUEEN_CONFIG = {"shareBase": "https://haoyu-zhao.github.io/chessdemo/stockfish/", "recoverySource": "https://api.github.com/repos/haoyu-zhao/chessdemo/contents/endpoint.json?ref=connection", "endpointSources": ["https://raw.githubusercontent.com/haoyu-zhao/chessdemo/connection/endpoint.json", "../endpoint.json"], "engine": "stockfish-gemini"};

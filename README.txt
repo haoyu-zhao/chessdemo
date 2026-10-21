@@ -1,6 +1,7 @@
 QUEEN CHESS DEMO
 
-Website: https://haoyu-zhao.github.io/chessdemo/
+Queen version: https://haoyu-zhao.github.io/chessdemo/
+Stockfish + Gemini version: https://haoyu-zhao.github.io/chessdemo/stockfish/
 
 This repository hosts the chess interface on GitHub Pages. Inference runs on
 an H100 server using the official princeton-nlp/queen_pawn-8 checkpoint, bundled
@@ -29,3 +30,12 @@ Chess piece SVGs: Wikimedia Cburnett, via python-chess (GPL; included license).
 https://python-chess.readthedocs.io/en/latest/svg.html
 Noto Sans SC font subset: SIL Open Font License, static/fonts/OFL.txt.
 The Queen model and weights are not redistributed by this frontend repository.
+
+The separate Stockfish page keeps the same UI. Stockfish 19 computes the move,
+evaluation and variations; google/gemini-4-argon explains that fixed engine
+evidence in English. The two versions keep separate saved games in the browser.
+Gemini cannot change Stockfish moves. If its API is unavailable, the page labels
+the missing explanation explicitly and keeps the Stockfish move.
+The API credential is held on the server and is never included in this repo.
+The Stockfish variant needs server CPU and a funded Gemini API credential.
+Stockfish: https://stockfishchess.org/ (engine runs on the server, not distributed here).
