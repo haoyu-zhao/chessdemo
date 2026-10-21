@@ -42,7 +42,9 @@ if (hybridMode) {
   messages.zh.help[3]='PGN 导出棋谱和 Gemini 的解释；JSON 还包含 Stockfish 评分、候选走法、设置和耗时。';
   messages.en.help[3]='PGN exports the game with Gemini explanations. JSON also includes Stockfish scores, candidates, settings, and timings.';
 }
-let lang = localStorage.getItem('queen-language') || 'zh';
+const languageStorageKey = hybridMode ? 'queen-stockfish-language' : 'queen-language';
+const savedLanguage = localStorage.getItem(languageStorageKey);
+let lang = ['en','zh'].includes(savedLanguage) ? savedLanguage : (window.QUEEN_CONFIG?.defaultLanguage || 'zh');
 let game = null, viewedPly = 0, selected = null, flipped = false, pvFen = null, pvIndex = -1;
 let ready = false, authenticated = false, busy = false, explicitAnalysis = null, polling = false;
 const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -75,7 +77,7 @@ async function afterLogin(){authenticated=true;if($('login-dialog').open)$('logi
 async function signIn(code){await api('/login',{code});await afterLogin();}
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('access-code').value);$('access-code').value='';}catch(err){$('login-error').textContent=err.message;show('login-error',true);}});
 $('login-dialog').addEventListener('cancel',e=>e.preventDefault());
-$('language').onclick=()=>{lang=lang==='zh'?'en':'zh';localStorage.setItem('queen-language',lang);localize();};
+$('language').onclick=()=>{lang=lang==='zh'?'en':'zh';localStorage.setItem(languageStorageKey,lang);localize();};
 $('new-game').onclick=()=>{if(!authenticated){$('login-dialog').showModal();return;}$('new-dialog').showModal();};
 $('cancel-new').onclick=()=>$('new-dialog').close();
 $('new-form').addEventListener('submit',async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const color=new FormData(e.target).get('color');const fen=$('start-fen').value.trim()||initialFen;const data=await api('/games',{color,fen,engine:engineKind});flipped=color==='black';setGame(data);$('new-dialog').close();show('new-error',false);if(data.model_turn&&!data.game_over&&ready)await ask(true);}catch(err){$('new-error').textContent=err.message;show('new-error',true);}finally{button.disabled=false;}});
