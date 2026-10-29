@@ -52,12 +52,72 @@ function plainMoveFinding(h,report,uci){
  return h.test==='necessity'?wording(`Even without “${name}”, ${w.san} retains a score close to the reference. The larger search agrees. So that property cannot be required for keeping a comparable evaluation here.`,`即使不具备“${name}”，${w.san} 仍然保持了接近参考的评分，增加搜索预算后也如此。所以，不能把这个属性说成保持相近评价必不可少的原因。`):wording(`${w.san} has “${name}”, but its score still falls outside the allowed gap from the reference, even after rechecking. That property alone therefore does not make a move a good choice here.`,`${w.san} 虽然具备“${name}”，评分仍低于本次允许的范围，增加搜索预算后也如此。所以，不能仅凭这个属性判断一步棋值得选。`);
 }
 function pieceName(name){return lang==='zh'?({pawn:'兵',knight:'马',bishop:'象',rook:'车',queen:'后',king:'王'}[name]||name):name;}
+const explanationPropertyNames={vacates_square:['Clearing a square','腾出格子'],opens_line:['Opening a line','打开线路'],attacks_square:['Attacking a specific square','攻击指定格'],absolute_pin:['Absolute pin','绝对牵制']};
+const explanationPropertyDefinitions={
+ vacates_square:['The move leaves the piece’s original square empty. Whether this opens a useful line requires a separate check.','棋子移动后，原来的格子变空。是否因此打开有用的线路，还要单独检查。'],
+ opens_line:['Moving a blocker opens the stated line for a bishop, rook or queen. This fact alone does not prove that the move is best.','移开阻挡子后，象、车或后通往指定格子的线路连通。这一事实本身不证明该着法最好。'],
+ attacks_square:['This concerns one piece attacking a specific square. The separate “at least two central attacks” property counts central squares attacked by the whole side. An attack is not a forced capture.','这里说的是某枚棋子攻击某个具体格子。“攻击至少两个中心格”则统计整方棋子攻击的中心格数量，是另一个属性。攻击不等于能强制吃子。'],
+ absolute_pin:['Moving the pinned piece off the pin line would expose its own king. Specific legal captures are checked separately.','这枚棋子离开牵制线会暴露自己的王。某个具体吃子是否合法，需要单独检查。']
+};
+function showExplanationProperty(button,spec,a,c){
+ $('explanation-property-note')?.remove();
+ document.querySelectorAll('.property-highlight[aria-expanded="true"]').forEach(b=>b.setAttribute('aria-expanded','false'));
+ const box=element('aside',undefined,'explanation-property-note');box.id='explanation-property-note';box.setAttribute('role','note');
+ let title,definition;
+ if(spec.concept_id){title=conceptName(a.concept_agent,spec.concept_id);definition=conceptDefinition(a.concept_agent,spec.concept_id);if(spec.polarity==='absent')definition+=' '+wording('This passage tests the absence of that property.','本段检验的是“没有这个现象”，所以要连同“没有”一起理解。');}
+ else if(spec.goal){title=wording(...goalNames[spec.goal]);definition=wording('This is a short-term game goal, evaluated over the stated number of plies against all legal replies. It is not a claim about the whole game.','这是限定步数内的棋局目标，需要考虑对手的所有合法应手；不是对整盘胜负的判断。');}
+ else{title=wording(...explanationPropertyNames[spec.attribute]);definition=wording(...explanationPropertyDefinitions[spec.attribute]);}
+ const heading=element('div',undefined,'property-note-heading');heading.append(element('strong',title));
+ const close=element('button',wording('Close','关闭'),'property-note-close');close.type='button';close.onclick=()=>{box.remove();button.setAttribute('aria-expanded','false');button.focus();};heading.append(close);box.append(heading);
+ paragraph(box,definition);
+ const more=element('button',wording('Open the supporting evidence','展开对应的检验记录'),'property-evidence-link');more.type='button';
+ more.onclick=()=>{
+  if(spec.test_id){inspectAuditTest(spec.test_id);return;}
+  if(spec.goal)selectedGoal=spec.goal;
+  toggleAnalysisDetails(true);agentRerender();toggleAnalysisDetails(true);
+  const target=spec.goal?$('bounded-goal-details'):Number.isInteger(spec.detailIndex)?$(`lineage-${c.uci}-${spec.detailIndex}`):$('mechanism-guide');
+  if(target?.tagName==='DETAILS')target.open=true;
+  target?.scrollIntoView({behavior:'smooth',block:'center'});
+ };
+ box.append(more);button.setAttribute('aria-expanded','true');
+ (button.closest('.final-paragraph')||button.parentElement).after(box);
+}
+function paintHighlightedParagraph(parent,text,a,c,detail=null,detailIndex=null){
+ const p=element('p',undefined,'final-paragraph'),matches=[];
+ const plan=a.concept_agent?.move_mechanisms?.find(x=>x.move_uci===c.uci);
+ const evidence=detail?.evidence||{},available=new Set((plan?.claims||[]).filter(x=>x.status==='verified').map(x=>x.attribute));
+ if(evidence.attribute)available.add(evidence.attribute);
+ if(evidence.checked_claim)available.add(evidence.checked_claim.attribute);
+ const add=(pattern,spec)=>{for(const m of text.matchAll(pattern))matches.push({start:m.index,end:m.index+m[0].length,spec});};
+ if(detail?.kind==='concept_test'&&evidence.concept_id){
+  // Keep negation inside the highlighted property: “absence of C” is not C.
+  add(/“[^”]+”/g,{concept_id:evidence.concept_id,test_id:evidence.test_id,polarity:evidence.polarity});
+ }else if(detail?.kind==='goal'){
+  add(/净子力不减少|净增至少一兵子力|preserve net material|gain at least one net material point/g,{goal:evidence.goal});
+ }else if(!detail||['attribute','comparison'].includes(detail.kind)){
+  const patterns={
+   vacates_square:lang==='zh'?/腾出\s*[a-h][1-8](?:\s*格)?/g:/leaves?\s+[a-h][1-8]\s+empty/gi,
+   opens_line:lang==='zh'?/打开(?:了|的是)?[^。；，\n]*?线路|通向\s*[a-h][1-8]\s*的线路连通/g:/opens?[^.;\n]*?\bline\b(?:\s+to\s+[a-h][1-8])?/gi,
+   attacks_square:lang==='zh'?/攻击\s*(?:零个中心格|[a-h][1-8](?:\s*[、和及,]\s*[a-h][1-8])*)(?:\s*格)?/g:/attacks?\s+(?:none|[a-h][1-8](?:\s*(?:,|and)\s*[a-h][1-8])*)/gi,
+   absolute_pin:lang==='zh'?/(?:被)?绝对牵制|被牵制在自己的王前/g:/pinned to (?:its|the) king/gi
+  };
+  for(const [attribute,pattern] of Object.entries(patterns)){
+   if(available.has(attribute)||(detail?.kind==='comparison'&&['opens_line','attacks_square'].includes(attribute)))add(pattern,{attribute,detailIndex});
+  }
+ }
+ matches.sort((x,y)=>x.start-y.start||y.end-x.end);let end=0;
+ for(const m of matches){if(m.start<end)continue;p.append(document.createTextNode(text.slice(end,m.start)));
+  const b=element('button',text.slice(m.start,m.end),'property-highlight');b.type='button';b.dataset.property=m.spec.concept_id||m.spec.attribute||m.spec.goal;b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls','explanation-property-note');b.title=wording('View this property’s definition and evidence','查看这个属性的含义和依据');b.onclick=()=>showExplanationProperty(b,m.spec,a,c);p.append(b);end=m.end;
+ }
+ p.append(document.createTextNode(text.slice(end)));parent.append(p);
+}
 function paintMoveExplanation(root,a,c){
  const box=element('div',undefined,'final-explanation');box.id='move-explanation';
+ const key=element('p',undefined,'property-highlight-key');key.append(element('span',wording('Blue underlined text','蓝色下划线'),'property-key-sample'),document.createTextNode(wording(' marks the property or goal being discussed. Click it for its meaning and evidence.','标出正在讨论的属性或目标，点击可看含义和依据。')));box.append(key);
  const text=c.explanation_summary?.[lang]||c.explanation_translations?.[lang]||c.text;
- if(text){for(const part of text.split(/\n\s*\n/))paragraph(box,part,'final-paragraph');}
+ if(text){for(const part of text.split(/\n\s*\n/))paintHighlightedParagraph(box,part,a,c);}
  else paragraph(box,wording('A concrete explanation for this move is not yet available.','这步棋暂时还没有足够具体的解释。'),'final-paragraph');
- for(const detail of c.explanation_details||[]){const item=element('section',undefined,'explanation-detail');item.dataset.kind=detail.kind;item.append(element('h4',detail.title[lang]));paragraph(item,detail.text[lang],'final-paragraph');box.append(item);}
+ for(const [i,detail] of (c.explanation_details||[]).entries()){const item=element('section',undefined,'explanation-detail');item.dataset.kind=detail.kind;item.append(element('h4',detail.title[lang]));paintHighlightedParagraph(item,detail.text[lang],a,c,detail,i);box.append(item);}
  root.append(box);
 }
 function toggleAnalysisDetails(open,scroll=false){analysisDetailsOpen=open;const panel=$('analysis-details');if(!panel)return;panel.open=open;panel.classList.toggle('hidden',!open);const b=$('toggle-analysis-details');if(b){b.textContent=wording(open?'Hide analysis process':'How was this explanation checked?',open?'收起分析过程':'查看分析过程与依据');b.setAttribute('aria-expanded',String(open));}if(open&&scroll)panel.scrollIntoView({behavior:'smooth',block:'start'});}
