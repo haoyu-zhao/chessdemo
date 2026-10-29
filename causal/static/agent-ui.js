@@ -53,37 +53,11 @@ function plainMoveFinding(h,report,uci){
 }
 function pieceName(name){return lang==='zh'?({pawn:'兵',knight:'马',bishop:'象',rook:'车',queen:'后',king:'王'}[name]||name):name;}
 function paintMoveExplanation(root,a,c){
- const report=a.concept_agent,box=element('div',undefined,'final-explanation');box.id='move-explanation';
- const reference=a.candidates[0],entry=report&&outcomeEntry(report,c.uci),side=wording(a.root_color==='white'?'White':'Black',a.root_color==='white'?'白方':'黑方');
- let lead;
- if(c.uci===reference.uci)lead=wording(`Stockfish currently ranks ${c.san} first, with a score of ${scoreLabel(c.score)} for ${side}.`, `本次搜索中，Stockfish 优先推荐 ${c.san}，从${side}视角评分为 ${scoreLabel(c.score)}。`);
- else if(c.score.cp!==null&&reference.score.cp!==null)lead=wording(`${c.san} scores ${scoreLabel(c.score)}, ${(Math.max(0,reference.score.cp-c.score.cp)/100).toFixed(2)} evaluation points below the leading move ${reference.san}.`,`${c.san} 的评分是 ${scoreLabel(c.score)}，比本次排在首位的 ${reference.san} 低 ${(Math.max(0,reference.score.cp-c.score.cp)/100).toFixed(2)} 个评价单位。`);
- else lead=wording(`${c.san} has an engine score of ${scoreLabel(c.score)}. Mate scores are compared separately from ordinary evaluations.`,`${c.san} 的引擎评分为 ${scoreLabel(c.score)}。将杀评分单独比较，不折算成普通分数。`);
- if(entry?.outcome===true){const alternatives=report.root_moves.filter(r=>r.uci!==c.uci&&outcomeEntry(report,r.uci)?.outcome===true);if(alternatives.length)lead+=wording(` ${alternatives.slice(0,3).map(x=>x.san).join(', ')}${alternatives.length>3?' and other moves':''} also meet the comparison target; this move is not the only acceptable choice in this search.`,` ${alternatives.slice(0,3).map(x=>x.san).join('、')}${alternatives.length>3?' 等着法':''}也达到本次比较标准，因此当前证据并不要求只能走 ${c.san}。`);}
- else if(entry?.outcome===false)lead+=wording(' It falls outside the chosen near-reference range.','它超出了本次允许的评分差距。');
- paragraph(box,lead,'final-paragraph');
- const f=c.immediate_facts;let action=wording(`${c.san} moves the ${pieceName(f.piece)} from ${f.from} to ${f.to}`,`${c.san} 把${pieceName(f.piece)}从 ${f.from} 走到 ${f.to}`);
- if(f.castling)action=wording(`${c.san} castles the king and rook`,`${c.san} 完成王车易位`);
- if(f.capture)action+=wording(` and captures a ${pieceName(f.capture)}`,`，吃掉对方的${pieceName(f.capture)}`);
- action+=f.checkmate?wording(', delivering checkmate.', '，形成将杀。'):f.check?wording(', giving check.', '，并将军。'):wording('.', '。');
- const line=c.pv_steps.slice(0,4).map(x=>x.san).join(' → ');
- if(line)action+=wording(` One continuation the engine examines is ${line}. This is a possible line, not a forced sequence.`,`引擎考虑的一条后续变化是 ${line}；这是一条可能的续局，不代表对手只能这样应对。`);
- paragraph(box,action,'final-paragraph');
- if(report){
-  const all=report.rounds.flatMap(r=>r.hypotheses),relevant=[...all].reverse().find(h=>h.verdict==='refuted_confirmed'&&witnesses(h).some(w=>w.uci===c.uci&&w.stable_across_budgets));
-  if(relevant)paragraph(box,plainMoveFinding(relevant,report,c.uci),'final-paragraph');
-  else{const supported=[...report.hypotheses].reverse().find(h=>h.verdict==='not_refuted_in_base_scan'&&!h.matrix.constant_concept&&h.matrix.cells.C1Y1.some(r=>r.uci===c.uci));
-   if(supported)paragraph(box,wording(`This move satisfies “${conditionName(supported,report)}”. The tested relationship has no counterexample in the base scan, so it remains a possible explanation. That does not show this property alone causes the score.`,`这步满足“${conditionName(supported,report)}”。关于这个属性的主张在本次基础搜索中尚未出现反例，可以保留为候选解释；这还不能证明评分优势就是由它单独造成的。`),'final-paragraph');
-   else paragraph(box,wording('The engine can rank this move, but the registered properties do not yet provide a confirmed explanation for its score difference. A specific strategic cause remains unresolved.','引擎可以比较这步的优劣，但当前已注册属性的检验还没有给出足以确认的评分差异解释。具体的战略原因仍待查明。'),'final-paragraph');
-  }
- }
- if(a.evidence_settings.rollouts&&c.event_estimates.material_preserved){
-  const sample=c.event_estimates.material_preserved,other=a.candidates.find(x=>x.uci!==c.uci),baseline=other?.event_estimates.material_preserved;
-  let text=wording(`In ${sample.n} sampled continuations for ${c.san}, ${sample.successes} ended without a net material loss. Each sample includes at most ${a.evidence_settings.horizon} individual moves counting the first move.`,`在 ${c.san} 的 ${sample.n} 条采样续局中，有 ${sample.successes} 条在终点没有净子力损失。每条从这一步起，双方合计最多走 ${a.evidence_settings.horizon} 步。`);
-  if(baseline){const effect=a.causal_analysis.pairwise_effects.find(x=>x.action===c.uci&&x.alternative===other.uci)?.events.material_preserved;text+=wording(` For ${other.san}, the count is ${baseline.successes}/${baseline.n}.`,`对照 ${other.san} 是 ${baseline.successes}/${baseline.n} 条。`);if(effect&&!effect.resolved)text+=wording(' The uncertainty is too large to distinguish these moves on this outcome.','考虑采样不确定性后，目前还不足以分辨两步在这一后果上的差异。');}
-  paragraph(box,text,'final-paragraph');
- }
- paragraph(box,wording('Summary assembled from engine lines and executable checks. Expand the process to inspect what was tested.','以上说明依据引擎变化与程序检验整理。展开分析过程可查看每一项依据。'),'explanation-source');root.append(box);
+ const box=element('div',undefined,'final-explanation');box.id='move-explanation';
+ const text=c.explanation_translations?.[lang]||c.text;
+ if(text){for(const part of text.split(/\n\s*\n/))paragraph(box,part,'final-paragraph');}
+ else paragraph(box,wording('A concrete explanation for this move is not yet available.','这步棋暂时还没有足够具体的解释。'),'final-paragraph');
+ root.append(box);
 }
 function toggleAnalysisDetails(open,scroll=false){analysisDetailsOpen=open;const panel=$('analysis-details');if(!panel)return;panel.open=open;panel.classList.toggle('hidden',!open);const b=$('toggle-analysis-details');if(b){b.textContent=wording(open?'Hide analysis process':'How was this explanation checked?',open?'收起分析过程':'查看分析过程与依据');b.setAttribute('aria-expanded',String(open));}if(open&&scroll)panel.scrollIntoView({behavior:'smooth',block:'start'});}
 function prepareReadableLayout(a,c){
@@ -101,10 +75,10 @@ function sectionStep(id,title){const s=section(title);s.id=id;return s;}
 function paintConceptAgent(root,a){
  const report=a.concept_agent;if(!report)return;
  const intro=sectionStep('analysis-overview',wording('How this result was produced','这份解释是怎样得到的'));intro.classList.add('analysis-intro');
- paragraph(intro,wording('Start with the comparison target, then inspect the properties and the actual counterexamples. All scores refer to the player whose turn it was in the position being analysed.','先看比较标准，再看棋类属性，最后看实际反例。下文所有评分都以被分析局面中的行棋方为视角。'));
+ paragraph(intro,wording('Start with the concrete claims behind the selected explanation. The broader property comparisons and counterexample searches follow separately. All scores refer to the original side to move.','先看当前解释引用了哪些具体事实，以及这些事实之间的联系是否成立。后面另列属性比较和反例搜索。所有评分都以被分析局面的行棋方为视角。'));
  const nav=element('nav',undefined,'analysis-nav');nav.setAttribute('aria-label',wording('Analysis steps','分析步骤'));
- for(const [id,en,zh] of [['score-guide','Score target','比较标准'],['concept-guide','20 properties','20 个属性'],['pipeline-guide','Search workflow','检验流程'],['hypothesis-guide','Hypothesis revisions','假设修订'],['verifier-guide','Actual counterexamples','具体反例']]){const link=element('a',wording(en,zh));link.href='#'+id;nav.append(link);}intro.append(nav);root.append(intro);
- paintScoreGuide(root,a);paintConceptGuide(root,a);paintPipelineGuide(root,a);
+ for(const [id,en,zh] of [['mechanism-guide','This explanation','当前解释的依据'],['score-guide','Score target','比较标准'],['concept-guide','20 properties','20 个属性'],['pipeline-guide','Search workflow','检验流程'],['hypothesis-guide','Hypothesis revisions','假设修订'],['verifier-guide','Actual counterexamples','具体反例']]){const link=element('a',wording(en,zh));link.href='#'+id;nav.append(link);}intro.append(nav);root.append(intro);
+ paintMechanismEvidence(root,a);paintScoreGuide(root,a);paintConceptGuide(root,a);paintPipelineGuide(root,a);
  const rounds=report.rounds;if(agentRoundIndex===null||agentRoundIndex>=rounds.length)agentRoundIndex=rounds.length-1;const round=rounds[agentRoundIndex];
  const history=sectionStep('hypothesis-guide',wording('4. What did the model ask, and what changed?','4. 模型提出了什么问题，之后怎样修改？'));
  paragraph(history,wording('A hypothesis is a question to test, not an accepted explanation. Round 1 contains initial questions. Round 2 contains questions proposed after feedback; every new question is checked again.','“假设”是一条等待检验的解释，不是已经成立的理由。第一轮提出初始问题；第二轮根据反例保留、撤回或修改问题，每个新问题都会重新检查。'));
@@ -155,7 +129,7 @@ function paintPipelineGuide(root,a){
   [wording('Compute properties and propose questions','计算属性，提出解释假设'),wording('Python computes the registered properties after every first move and extracts captures, checks and material changes from engine lines. DeepSeek receives that evidence and chooses explicit necessity or sufficiency questions to test.','Python 对每个首步后的棋盘运行属性检测器，并从引擎变化中提取吃子、将军、子力变化。DeepSeek 读取这些证据，提出可以明确检验的必要性或充分性问题。')],
   [wording('Search for counterexamples','程序寻找反例'),wording(`The verifier scans every legal first move for the condition that would refute each claim. It prioritises potential counterexamples and threshold cases, then rechecks up to ${r.verification.moves.length} moves with ${r.verification.nodes_per_rechecked_move.toLocaleString()} nodes each, including the reference.`,`Verifier 对全部合法首步检查“什么情况会推翻这条主张”，优先挑出候选反例及门槛附近着法。当前一轮复核了 ${r.verification.moves.length} 个着法，每步 ${r.verification.nodes_per_rechecked_move.toLocaleString()} 节点，包含参考着法。`)],
   [wording('Give feedback and re-test revisions','反馈给模型，再检验修订'),wording('Python reports the scores, detected properties and exact failed implication. DeepSeek can withdraw, retain or revise a hypothesis. Revised hypotheses go through the same program again; there are at most two hypothesis rounds.','Python 返回评分、属性检测结果，以及被反例推翻的是哪条主张。DeepSeek 可以撤回、保留或修改假设。修订后的假设再次经过同一程序，最多两轮。')],
-  [wording('Assemble the explanation','整理最终说明'),wording('The readable move summary uses engine lines and program verdicts. Original model proposals and wording remain available in the advanced record. The verifier is Python plus Stockfish, not another language-model judge.','页面依据引擎变化与程序判定，整理当前着法的易读说明。模型原始提议与文字保存在高级记录中。Verifier 是 Python + Stockfish，不是另一个语言模型裁判。')]
+  [wording('Assemble the explanation','整理最终说明'),wording('DeepSeek writes the final move explanation using usable, piece-specific claims and checked links. The same text is stored for display and dataset export. Python and Stockfish perform the verification; the model does not judge itself.','DeepSeek 根据可用的具体棋子命题和已经检验的联系，生成最终解释；同一份文字用于页面和数据导出。验证由 Python + Stockfish 完成，不由模型自行裁判。')]
  ];
  if(!r.agent.llm_used)paragraph(block,wording('For this particular run, the model was unavailable and preset property questions were used instead. All available chess checks were still performed by the program.','这次运行中模型未参与，系统使用预设的属性问题进行检查；可用的棋局验证仍由程序完成。'));
  else paragraph(block,wording(`This record contains ${r.rounds.length} hypothesis rounds${r.agent.cached?' and reuses an earlier result':''}. The original model messages and usage are retained in the advanced record.`,`本份记录包含 ${r.rounds.length} 轮假设检验${r.agent.cached?'，本次复用了已生成的结果':''}。模型原始文字和用量保存在高级记录中。`));
@@ -196,4 +170,17 @@ function syncEvidencePreview(){
  paragraph(box,wording('The board shows this continuation. Your actual game has not changed.','棋盘正在展示这条续局，实际对局没有改变。'));
  const moves=element('div',undefined,'pv');counterexampleMove.pv_steps.forEach((step,i)=>{const b=element('button',step.san);b.classList.toggle('active',pvIndex===i);b.onclick=()=>{pvFen=step.fen_after;pvIndex=i;render();};moves.append(b);});box.append(moves);
  const back=element('button',wording('Return to the analysed position','返回被分析的局面'),'text-button');back.onclick=()=>{pvFen=null;pvIndex=-1;render();};box.append(back);$('move-explanation').prepend(box);
+}
+
+function paintMechanismEvidence(root,a){
+ const report=a.concept_agent,c=currentCandidate(),plan=report.move_mechanisms?.find(p=>p.move_uci===c?.uci);if(!plan)return;
+ const block=sectionStep('mechanism-guide',wording('The concrete mechanism behind this explanation','这段解释对应的具体机制'));
+ paragraph(block,wording('The displayed paragraph is the generated explanation stored with this candidate. Below are its executable claims and separately checked links. An unchanged property is not automatically an explanation of the move.','右侧段落是为当前候选着法生成并保存的解释。下面逐项列出其可执行命题和单独检验的联系。一个没有发生变化的属性，不会自动成为这步棋的理由。'));
+ const names={vacates_square:'腾出格子',attacks_square:'攻击指定格',opens_line:'打开指定线路',absolute_pin:'指定棋子被绝对牵制',legal_capture:'指定吃子是否合法',passed_pawn:'指定兵是否为通路兵',bishop_pair:'拥有异色格双象',gives_check:'将军',checkmate:'将杀',castles:'王车易位',material_gain:'首步净得子力',line_material_gain:'此续局中净得子力',line_material_loss:'此续局中净丢子力',forced_material_gain:'限定步数内强制净得子力'};
+ const labels={verified:'事实成立',falsified:'与棋盘事实不符',unknown:'尚无法判断',invalid_arguments:'棋子或参数不匹配',unsupported_attribute:'当前不支持',verified_rule:'规则机制通过检验',observed_only:'仅为这条续局中的观察',unverified_relation:'联系尚未验证'};
+ block.append(table([wording('Claim','命题'),wording('Exact target','具体对象'),wording('Check result','检验结果')],plan.claims.map(h=>[`${h.id} · ${lang==='zh'?(names[h.attribute]||h.attribute):h.attribute}`,`${h.color==='white'?wording('White','白方'):wording('Black','黑方')} · ${[h.square,h.target_square].filter(Boolean).join(' → ')||c.san} · ${wording('ply','第')}${h.at_ply}${lang==='zh'?'个半回合后':''}`,(lang==='zh'?(labels[h.status]||h.status):h.status)+(h.actual_value===true?wording(' · value: true',' · 实测：是'):h.actual_value===false?wording(' · value: false',' · 实测：否'): '')])));
+ block.append(table([wording('Link','联系'),wording('Result','结果')],plan.relations.map(r=>[`${r.from_id==='move'?c.san:r.from_id} → ${r.to_id} (${r.relation})`,lang==='zh'?(labels[r.status]||r.status):r.status])));
+ paragraph(block,wording('Claim labels such as H1 or F1 identify rows in this table only. A true or false value is the detected property; passing a check means it matches the proposed value. creates/removes means the move makes the property appear/disappear; enables names a separately checked link.', 'H1、F1 等只是本表中命题的编号。下面显示属性实际为真还是为假；“事实成立”表示结果符合提出的命题。creates/removes 表示这步棋使属性出现或消失；enables 表示两个命题之间还需单独检查的联系。'));
+ paragraph(block,wording('The checked links currently cover clearing a blocker to open a slider line, that open line establishing an attack, and a king pin making a specific capture illegal. Other links remain unverified. This does not establish which property uniquely determines the position value.','当前能检查的联系包括：移开阻挡子打开线路、线路打开后形成攻击、绝对牵制使某个具体吃子不合法。其他联系仍标为未验证。这不等于证明某个属性单独决定了局面优劣。'));
+ paragraph(block,wording('The same explanation text is exported as the training target. Verification and model provenance are separate fields. Free-form prose still needs semantic review before entering a trusted training set.','导出的训练目标与页面解释使用同一份文字。验证记录和模型来源单独保存。自由生成的整段文字仍需要语义审查，才能进入可信训练集。'));root.append(block);
 }
