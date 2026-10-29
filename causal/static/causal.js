@@ -7,8 +7,8 @@ function configureCausalMessages() {
   Object.assign(messages.en, {
     subtitle:'Explore this position. Compare the ideas behind your next moves.',
     thinking:'Understanding this position', analysisIntro:'Candidate moves and their consequences',
-    thinkingNow:'Exploring the continuations…', firstMoveTitle:'What would you play here?',
-    firstMoveText:'Start a position, then compare the recommended moves and their explanations. You can move either side to explore what happens next.',
+    thinkingNow:'Exploring the continuations…', firstMoveTitle:'Start with your first move',
+    firstMoveText:'Make the first move on the board. Analysis will then begin automatically, with candidate replies and explanations for the new position.',
     original:'Position analysis', criticalLine:'If you play this move',
     rawOutput:'View supporting analysis', ready:'Analysis ready', loading:'Connecting to analysis',
     thinkingTime:'{s}s elapsed · Comparing the alternatives and their continuations',
@@ -20,7 +20,7 @@ function configureCausalMessages() {
     start:'Open position', liveHint:'Move either side to explore a new position. Its explanation updates automatically.',
     positionAnalysis:'Current position · {side} to move', pvHint:'Exploring a candidate continuation. Select “Live position” to return.',
     candidate:'CANDIDATE', recommended:'FIRST CHOICE', positionReady:'Position overview',
-    help:['Open a new position or paste a FEN. The analysis describes that exact board.',
+    help:['For a standard new game, make the first move to begin analysis. Other FEN positions are analyzed immediately.',
           'Compare up to three candidate moves. Select one to read its reasoning and preview its continuation.',
           'Move either side on the board, or select “Play this move”. The new position gets its own analysis.',
           'Use the history and arrows to revisit a position and its saved explanation.',
@@ -29,8 +29,8 @@ function configureCausalMessages() {
   Object.assign(messages.zh, {
     subtitle:'理解当前局面，比较下一步的不同选择。', thinking:'当前局面的思路',
     analysisIntro:'候选着法，以及它们会带来什么', thinkingNow:'正在比较后续变化…',
-    firstMoveTitle:'这个局面，你会怎么走？',
-    firstMoveText:'打开一个局面，查看推荐着法和逐项解释。你可以移动任一方棋子，探索不同选择的后果。',
+    firstMoveTitle:'从你的第一步开始',
+    firstMoveText:'先在棋盘上走出第一步。随后会自动分析新的局面，展示候选应手和各自的解释。',
     original:'当前局面分析', criticalLine:'如果走这一步', rawOutput:'查看分析依据',
     ready:'分析已就绪', loading:'正在连接分析服务', thinkingTime:'已等待 {s} 秒 · 正在比较候选着法与后续变化',
     researchNote:'解释基于搜索和采样续局，仍可结合棋盘与变化线核对。',
@@ -41,7 +41,7 @@ function configureCausalMessages() {
     start:'打开局面', liveHint:'可为双方走棋。每走一步，都会分析新的局面。',
     positionAnalysis:'当前局面 · 轮到{side}', pvHint:'正在预览候选变化。点击「当前局面」返回。',
     candidate:'候选着法', recommended:'优先推荐', positionReady:'局面判断',
-    help:['打开新的局面，或输入 FEN；解释对应当前棋盘。',
+    help:['标准开局先走第一步，再开始分析；导入其他 FEN 局面时会直接分析。',
           '比较最多三个候选着法，点击切换解释与后续变化。',
           '可为双方走棋，也可点击「走这一步」；新的局面会自动得到分析。',
           '使用棋谱和箭头回看，查看每个局面保存的解释。',
@@ -49,13 +49,19 @@ function configureCausalMessages() {
   });
 }
 
+function awaitingFirstMove(ply = viewedPly) {
+  const position = fen => fen.split(' ').slice(0, 4).join(' ');
+  return !!game && ply === 0 && position(game.initial_fen) === position(initialFen);
+}
+
 function currentCandidate() {
   return activeAnalysis()?.candidates?.[selectedCandidate] || null;
 }
 
 function renderCausalAnalysis() {
+  const opening = awaitingFirstMove();
   const analysis = activeAnalysis();
-  const pending = game?.pending?.ply === viewedPly ? game.pending : null;
+  const pending = !opening && game?.pending?.ply === viewedPly ? game.pending : null;
   const key = analysis?.evidence_id || null;
   if (key !== selectedAnalysisKey) { selectedAnalysisKey = key; selectedCandidate = 0; }
   const candidates = analysis?.candidates || [];
@@ -97,9 +103,10 @@ function renderCausalAnalysis() {
   }
   const warnings=[game?.error,analysis?.warning].filter(Boolean);
   $('error').textContent=warnings.join('\n');show('error',warnings.length>0);
+  show('analyze', !opening);
   $('analyze').textContent=t('analyze');
-  $('analyze').disabled=!game||!!game.pending||!ready||!!pvFen||game.game_over&&isLive();
-  show('play-model',!!game&&!game.game_over&&isLive());
+  $('analyze').disabled=opening||!game||!!game.pending||!ready||!!pvFen||game.game_over&&isLive();
+  show('play-model',!opening&&!!game&&!game.game_over&&isLive());
   $('play-model').textContent=t('queenMove');
   $('play-model').disabled=!!game?.pending||!ready||!currentCandidate();
 }
