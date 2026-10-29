@@ -54,9 +54,10 @@ function plainMoveFinding(h,report,uci){
 function pieceName(name){return lang==='zh'?({pawn:'兵',knight:'马',bishop:'象',rook:'车',queen:'后',king:'王'}[name]||name):name;}
 function paintMoveExplanation(root,a,c){
  const box=element('div',undefined,'final-explanation');box.id='move-explanation';
- const text=c.explanation_translations?.[lang]||c.text;
+ const text=c.explanation_summary?.[lang]||c.explanation_translations?.[lang]||c.text;
  if(text){for(const part of text.split(/\n\s*\n/))paragraph(box,part,'final-paragraph');}
  else paragraph(box,wording('A concrete explanation for this move is not yet available.','这步棋暂时还没有足够具体的解释。'),'final-paragraph');
+ for(const detail of c.explanation_details||[]){const item=element('section',undefined,'explanation-detail');item.dataset.kind=detail.kind;item.append(element('h4',detail.title[lang]));paragraph(item,detail.text[lang],'final-paragraph');box.append(item);}
  root.append(box);
 }
 function toggleAnalysisDetails(open,scroll=false){analysisDetailsOpen=open;const panel=$('analysis-details');if(!panel)return;panel.open=open;panel.classList.toggle('hidden',!open);const b=$('toggle-analysis-details');if(b){b.textContent=wording(open?'Hide analysis process':'How was this explanation checked?',open?'收起分析过程':'查看分析过程与依据');b.setAttribute('aria-expanded',String(open));}if(open&&scroll)panel.scrollIntoView({behavior:'smooth',block:'start'});}
