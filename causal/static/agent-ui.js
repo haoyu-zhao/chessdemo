@@ -114,6 +114,17 @@ function paintHighlightedParagraph(parent,text,a,c,detail=null,detailIndex=null)
 function paintMoveExplanation(root,a,c){
  const box=element('div',undefined,'final-explanation');box.id='move-explanation';
  const key=element('p',undefined,'property-highlight-key');key.append(element('span',wording('Blue underlined text','蓝色下划线'),'property-key-sample'),document.createTextNode(wording(' marks the property or goal being discussed. Click it for its meaning and evidence.','标出正在讨论的属性或目标，点击可看含义和依据。')));box.append(key);
+ if(c.decision_cards?.length){
+  key.replaceChildren(document.createTextNode(wording('A plan, the opponent’s replies, and competing choices. Open the evidence below each paragraph.','先看计划、对手应对与替代选择；每段下方可展开对应证据。')));
+  for(const card of c.decision_cards){
+   const p=element('p',undefined,'final-paragraph decision-paragraph');p.dataset.cardId=card.id;
+   const text=card.text[lang];let end=0;
+   const spans=(lang==='zh'?card.highlights||[]:[]).map(word=>({word,index:text.indexOf(word)})).filter(x=>x.index>=0).sort((a,b)=>a.index-b.index);
+   for(const part of spans){if(part.index<end)continue;p.append(document.createTextNode(text.slice(end,part.index)));const b=element('button',part.word,'property-highlight');b.type='button';b.title=wording('View this plan’s evidence','查看这个计划的依据');b.onclick=()=>openDecisionEvidence(card.id);p.append(b);end=part.index+part.word.length;}
+   p.append(document.createTextNode(text.slice(end)));box.append(p);
+   const evidence=element('button',wording('Inspect this paragraph’s evidence','查看这段解释的依据'),'decision-evidence-link');evidence.type='button';evidence.dataset.cardId=card.id;evidence.onclick=()=>openDecisionEvidence(card.id);box.append(evidence);
+  }root.append(box);return;
+ }
  const text=c.explanation_summary?.[lang]||c.explanation_translations?.[lang]||c.text;
  if(text){for(const part of text.split(/\n\s*\n/))paintHighlightedParagraph(box,part,a,c);}
  else paragraph(box,wording('A concrete explanation for this move is not yet available.','这步棋暂时还没有足够具体的解释。'),'final-paragraph');
@@ -138,8 +149,8 @@ function paintConceptAgent(root,a){
  const intro=sectionStep('analysis-overview',wording('How this result was produced','这份解释是怎样得到的'));intro.classList.add('analysis-intro');
  paragraph(intro,wording('Start with the concrete claims behind the selected explanation. The broader property comparisons and counterexample searches follow separately. All scores refer to the original side to move.','先看当前解释引用了哪些具体事实，以及这些事实之间的联系是否成立。后面另列属性比较和反例搜索。所有评分都以被分析局面的行棋方为视角。'));
  const nav=element('nav',undefined,'analysis-nav');nav.setAttribute('aria-label',wording('Analysis steps','分析步骤'));
- for(const [id,en,zh] of [['mechanism-guide','This explanation','当前解释的依据'],['score-guide','Score target','比较标准'],['concept-guide','20 properties','20 个属性'],['pipeline-guide','Search workflow','检验流程'],['hypothesis-guide','Hypothesis revisions','假设修订'],['verifier-guide','Actual counterexamples','具体反例']]){const link=element('a',wording(en,zh));link.href='#'+id;nav.append(link);}intro.append(nav);root.append(intro);
- paintDebugOverview(root,a);paintMechanismEvidence(root,a);paintScoreGuide(root,a);paintConceptGuide(root,a);paintDebugCoverage(root,a);paintPipelineGuide(root,a);
+ for(const [id,en,zh] of [['mechanism-guide','This explanation','当前解释的依据'],['score-guide','Score target','比较标准'],['concept-guide','20 properties','20 个属性'],['pipeline-guide','Search workflow','检验流程'],['hypothesis-guide','Hypothesis revisions','假设修订'],['verifier-guide','Actual counterexamples','具体反例']]){const link=element('a',wording(en,zh));link.href='#'+id;nav.append(link);}if(report.decision_analysis){const link=element('a',wording('Decision evidence','计划与结果对照'));link.href='#decision-guide';nav.prepend(link);}intro.append(nav);root.append(intro);
+ paintDecisionGuide(root,a);paintDebugOverview(root,a);paintMechanismEvidence(root,a);paintScoreGuide(root,a);paintConceptGuide(root,a);paintDebugCoverage(root,a);paintPipelineGuide(root,a);
  const rounds=report.rounds;if(agentRoundIndex===null||agentRoundIndex>=rounds.length)agentRoundIndex=rounds.length-1;const round=rounds[agentRoundIndex];
  const history=sectionStep('hypothesis-guide',wording('4. What did the model ask, and what changed?','4. 模型提出了什么问题，之后怎样修改？'));
  paragraph(history,wording('A hypothesis is a question to test, not an accepted explanation. Round 1 contains initial questions. Round 2 contains questions proposed after feedback; every new question is checked again.','“假设”是一条等待检验的解释，不是已经成立的理由。第一轮提出初始问题；第二轮根据反例保留、撤回或修改问题，每个新问题都会重新检查。'));
@@ -238,8 +249,9 @@ function syncEvidencePreview(){
 
 function paintMechanismEvidence(root,a){
  const report=a.concept_agent,c=currentCandidate(),plan=report.move_mechanisms?.find(p=>p.move_uci===c?.uci);if(!plan)return;
- const block=sectionStep('mechanism-guide',wording('The concrete mechanism behind this explanation','这段解释对应的具体机制'));
- paragraph(block,wording('The displayed paragraph is the generated explanation stored with this candidate. Below are its executable claims and separately checked links. An unchanged property is not automatically an explanation of the move.','右侧段落是为当前候选着法生成并保存的解释。下面逐项列出其可执行命题和单独检验的联系。一个没有发生变化的属性，不会自动成为这步棋的理由。'));
+ const block=sectionStep('mechanism-guide',rDecisionTitle(report));
+ if(report.decision_analysis)paragraph(block,wording('These are background board facts. They are not used alone as decision explanations; the outcome-linked evidence above determines the current text.','下面保留底层棋盘事实供调试。它们不再单独作为选棋理由；正文采用前面的计划、对手应对和结果对照。'));
+ else paragraph(block,wording('The displayed paragraph is the generated explanation stored with this candidate. Below are its executable claims and separately checked links. An unchanged property is not automatically an explanation of the move.','右侧段落是为当前候选着法生成并保存的解释。下面逐项列出其可执行命题和单独检验的联系。一个没有发生变化的属性，不会自动成为这步棋的理由。'));
  const names={vacates_square:'腾出格子',attacks_square:'攻击指定格',opens_line:'打开指定线路',absolute_pin:'指定棋子被绝对牵制',legal_capture:'指定吃子是否合法',passed_pawn:'指定兵是否为通路兵',bishop_pair:'拥有异色格双象',gives_check:'将军',checkmate:'将杀',castles:'王车易位',material_gain:'首步净得子力',line_material_gain:'此续局中净得子力',line_material_loss:'此续局中净丢子力',forced_material_gain:'限定步数内强制净得子力'};
  const labels={verified:'事实成立',falsified:'与棋盘事实不符',unknown:'尚无法判断',invalid_arguments:'棋子或参数不匹配',unsupported_attribute:'当前不支持',verified_rule:'规则机制通过检验',observed_only:'仅为这条续局中的观察',unverified_relation:'联系尚未验证'};
  block.append(table([wording('Claim','命题'),wording('Exact target','具体对象'),wording('Check result','检验结果')],plan.claims.map(h=>[`${h.id} · ${lang==='zh'?(names[h.attribute]||h.attribute):h.attribute}`,`${h.color==='white'?wording('White','白方'):wording('Black','黑方')} · ${[h.square,h.target_square].filter(Boolean).join(' → ')||c.san} · ${wording('ply','第')}${h.at_ply}${lang==='zh'?'个半回合后':''}`,(lang==='zh'?(labels[h.status]||h.status):h.status)+(h.actual_value===true?wording(' · value: true',' · 实测：是'):h.actual_value===false?wording(' · value: false',' · 实测：否'): '')])));
@@ -307,7 +319,7 @@ function paintDebugCalls(root,a){
  if(!d.calls.length)paragraph(box,wording('No model request was made in this run. All listed questions originate from the program.','本次没有发起模型请求，列出的问题均由程序生成。'));
  for(const [i,call] of d.calls.entries()){
   const row=element('details',undefined,'debug-call');row.id='debug-call-'+i;
-  const names={initial_hypotheses:'第一次：提出属性假设和着法机制',revised_hypotheses:'第二次：读取反例反馈，修订假设',move_explanations:'第三次：受检验结果约束，组织棋局解释'};
+  const names={initial_hypotheses:'第一次：提出属性假设和着法机制',revised_hypotheses:'第二次：读取反例反馈，修订假设',move_explanations:'第三次：受检验结果约束，组织棋局解释',decision_selection:'第三次：选择有证据的计划与对照解释'};
   row.append(element('summary',`${lang==='zh'?(names[call.stage]||call.stage):call.stage} · ${call.status==='received'?wording('response received','已收到返回'):wording('failed','失败')}`));
   paragraph(row,`${call.usage?.seconds||'—'} s · ${wording('Cost','费用')} $${call.usage?.usage?.cost??'—'}`);
   debugJSON(row,wording('Full prompt and evidence','完整提示词与输入证据'),call.messages);
@@ -321,17 +333,68 @@ function paintDebugCalls(root,a){
    debugJSON(row,wording('Revision reason and withdrawals','模型修订理由与撤回记录'),{reason:round.reason,withdrawn_ids:round.withdrawn_ids});
    const v=round.verification;paragraph(row,wording(`Higher-budget searches: ${v.moves.length} moves × ${v.nodes_per_rechecked_move} nodes. The reference is also rechecked.`,`更高预算复核：${v.moves.length} 个着法 × ${v.nodes_per_rechecked_move} 节点；参考着法也独立复核。`));
    row.append(table([wording('Move','着法'),wording('Why selected','为什么复核')],v.moves.map(u=>[r.root_moves.find(x=>x.uci===u)?.san||u,(v.selection_reasons[u]||[]).map(reason=>reason==='threshold_reference'?wording('Reference for the target','比较标准的参考着法'):reason==='threshold_boundary'?wording('Near comparison boundary','接近比较边界'):wording('Potential counterexample to ','可能推翻 ')+hypothesisName(reason.replace('counterexample_for_',''))).join('；')])));
-  }else if(call.stage==='move_explanations')debugJSON(row,wording('Rejected wording','未采用的解释及原因'),r.wording_rejections);
+  }else if(['move_explanations','decision_selection'].includes(call.stage))debugJSON(row,wording('Rejected wording','未采用的解释及原因'),r.wording_rejections);
   box.append(row);
  }root.append(box);
 }
 function paintDebugLineage(root,a){
  const r=a.concept_agent,c=currentCandidate(),line=r.debug_trace?.explanation_lineage?.[c?.uci];if(!line)return;
  const box=sectionStep('debug-lineage',wording(`Why each paragraph appears · ${c.san}`,`每段解释从哪里来 · ${c.san}`));
- paragraph(box,wording('The introduction uses checked piece-specific DSL claims. Property-test paragraphs below come directly from the 20-concept comparison and carry test IDs and witnesses. These are distinct evidence sources; a checked board fact does not by itself prove the reason a move is best.','开头的文字来自具体棋子 DSL 的事实与规则联系；“是否必要／足够”的段落直接来自 20 项属性的条件检验，并带有检验编号和反例。这两种证据来源明确区分：棋盘事实为真，不等于已经证明它是最佳着法的原因。'));
+ if(r.decision_analysis)paragraph(box,wording('Each paragraph is rendered from the saved decision evidence selected by DeepSeek. A conditional plan does not establish unique optimality.','每段文字都由保存的决策证据生成，DeepSeek 选择相关的计划与对照。条件成立下可行的计划，不等于已经证明唯一最优。'));
+ else paragraph(box,wording('The introduction uses checked piece-specific DSL claims. Property-test paragraphs below come directly from the 20-concept comparison and carry test IDs and witnesses. These are distinct evidence sources; a checked board fact does not by itself prove the reason a move is best.','开头的文字来自具体棋子 DSL 的事实与规则联系；“是否必要／足够”的段落直接来自 20 项属性的条件检验，并带有检验编号和反例。这两种证据来源明确区分：棋盘事实为真，不等于已经证明它是最佳着法的原因。'));
  debugJSON(box,wording('Introduction: cited facts and source','开头段落：引用事实与来源'),line.intro);
  for(const item of line.sections){const part=element('details',undefined,'lineage-row');part.id=`lineage-${c.uci}-${item.index}`;part.append(element('summary',`${item.index+1}. ${item.kind==='concept_test'?wording('Property implication test','属性条件检验'):wording('Board / continuation / bounded goal','棋盘事实／具体续局／有限步数目标')}`));paragraph(part,item.text[lang]);
   if(item.evidence.test_id){const b=element('button',wording('Open this test and its counterexamples','打开这条检验及其反例'),'secondary');b.dataset.testId=item.evidence.test_id;b.onclick=()=>inspectAuditTest(item.evidence.test_id);part.append(b);}
   debugJSON(part,wording('Exact supporting evidence','完整证据与引用编号'),item.evidence);box.append(part);
  }paragraph(box,wording('The exported training target matches the displayed text. Runs with missing/invalid model stages are excluded. Even complete runs still require semantic review of generated prose.','导出的训练目标与页面文字一致。模型步骤缺失或格式错误的运行会被排除；即使流程完整，自由生成的文字仍需语义审查。'));root.append(box);
+}
+
+function rDecisionTitle(r){return r.decision_analysis?wording('Background board facts · not standalone reasons','底层棋盘事实 · 不单独作为选棋理由'):wording('The concrete mechanism behind this explanation','这段解释对应的具体机制');}
+function openDecisionEvidence(cardId){
+ analysisDetailsOpen=true;agentRerender();toggleAnalysisDetails(true);
+ const target=[...document.querySelectorAll('.decision-card-record')].find(x=>x.dataset.cardId===cardId);
+ if(target){target.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}else $('decision-guide')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function decisionLine(parent,title,record){
+ if(!record?.pv_steps?.length)return;
+ const b=element('button',title+' · '+record.san,'decision-line');b.type='button';b.onclick=()=>inspectCounterexample({san:title,uci:record.pv_steps[0].uci,pv_steps:record.pv_steps});parent.append(b);
+}
+function paintDecisionGuide(root,a){
+ const report=a.concept_agent,d=report?.decision_analysis,c=currentCandidate();if(!d||!c)return;
+ const current=d.candidates.find(x=>x.uci===c.uci),box=sectionStep('decision-guide',wording('Decision analysis: outcomes, plans and counter-tests','决策分析：后果、计划与反向检验'));
+ paragraph(box,wording('This trial searches every immediate opponent reply, rechecks selected strong replies, and tests concrete continuation plans. It does not exhaust all future play or prove a unique best move.','本版先搜索每个合法的对手首个应手，再对选中的强应对和相关吃子增加预算，并检验具体后续计划。它没有穷尽全部未来变化，也没有证明唯一最优。'));
+ const budget=d.settings.comparison_nodes;
+ paragraph(box,wording(`Two comparison budgets: ${budget.join(' / ')} nodes per search. Each immediate reply is screened with ${d.settings.reply_screen_nodes} nodes. Material at a fixed three-ply cutoff is no longer the explanation’s quality criterion.`,`两档比较预算：每次 ${budget.join(' / ')} 节点。对手每个合法首个应手先用 ${d.settings.reply_screen_nodes} 节点筛查；增加预算的对象是筛查中最强的两个应手，以及中心兵吃掉首步移动棋子的应手。不再把“三个半回合内不丢子”当作解释好棋的统一标准。`));
+ box.append(table([wording('Candidate','候选'),...budget.map(n=>`${n.toLocaleString()} ${wording('nodes','节点')}`)],d.candidates.map(x=>[x.san,...x.rankings.map(r=>scoreLabel(r.score))])));
+ paragraph(box,wording('Scores use the original mover’s perspective. Small gaps or changing rankings support comparable plans, not a unique preference. They are not human win rates.','评分均从原行棋方视角给出。很小的差距或排序变化，支持“多种接近的计划”，不支持唯一偏好。这些数字不是用户的实战胜率。'));
+ for(const card of c.decision_cards||[]){
+  const record=element('details',undefined,'decision-card-record');record.id='decision-card-'+card.id.replaceAll(':','-');record.dataset.cardId=card.id;
+  const names={conditional_plan:'中心交换如何改变后续推进',preference:'与竞争着法比较，是否真的更好',tactical_consequence:'强应对下的具体风险',terminal_result:'终局结果',continuation_plan:'实际续局中的计划',limited_evidence:'尚未找到决定性机制'};
+  record.append(element('summary',lang==='zh'?(names[card.kind]||card.kind):card.kind));paragraph(record,card.text[lang]);
+  for(const id of card.evidence_ids){
+   const mechanism=current.mechanisms.find(x=>x.id===id),branch=current.branches.find(x=>x.id===id);
+   if(mechanism){
+    paragraph(record,wording('The same own pawn advance is tested after two legal opponent replies. The first moves away a central pawn; the other leaves it in place. The board link is checked, and all following replies remain available to the engine.','在两种合法的对手应对后，测试完全相同的己方推进：一种应对使中心兵离开，另一种保留中心兵。程序核对棋盘上的联系，之后的对手应对不加限制。'));
+    record.append(table([wording('Test','检验'),...budget.map(n=>n.toLocaleString())],[[wording('Same advance after the pawn moves away','中心兵离开后，同一推进的评分'),...mechanism.released.map(x=>scoreLabel(x.score))],[wording('Same advance with pawn retained','中心兵保留时，同一推进的评分'),...mechanism.retained.map(x=>scoreLabel(x.score))],[wording('Loss against best response, pawn moved','中心兵离开后，推进比该局面最佳选择低多少 cp'),...mechanism.loss_released_cp],[wording('Loss against best response, pawn retained','中心兵保留时，推进比该局面最佳选择低多少 cp'),...mechanism.loss_retained_cp]]));
+    paragraph(record,wording('Support requires the advance to stay within the comparison tolerance after release, but lose at least 50 cp against better alternatives while the pawn remains, at both budgets. Several features change with the opponent reply; this is conditional strategic evidence, not an isolated concept intervention.','只有两档预算下，中心兵离开后这次推进都保持在比较容差内，而保留中心兵时都比更好的应对至少差 50 cp，才进入正文。对手换着法也会改变其他因素，所以这是条件性的战略证据，不是单个属性的独立因果证明。'));
+    decisionLine(record,wording('Pawn moves away','中心兵离开'),mechanism.released_line);decisionLine(record,wording('Pawn remains','中心兵保留'),mechanism.retained_line);
+   }else if(branch){decisionLine(record,wording('Inspect the actual continuation','在棋盘查看具体续局'),branch.line);}
+   else if(id.endsWith(':ranking')){const other=d.candidates.find(x=>x.uci===id.slice(0,-8));if(other){const row=other.rankings.at(-1);decisionLine(record,other.san,{san:row.pv_san.slice(0,10).join(' '),pv_steps:row.pv_steps.slice(0,10)});}}
+  }
+  debugJSON(record,wording('Saved evidence references','保存的证据引用'),card);box.append(record);
+ }
+ const tests=element('details',undefined,'decision-tests');tests.id='decision-withholding';tests.append(element('summary',wording('Does the opened line actually matter at the next decision?','打开的线路，在下一次应手中是否真的不可替代？')));
+ paragraph(tests,wording('At the next own turn after a selected strong reply, compare normal search with search excluding immediate slider moves using the opened ray. Future use remains allowed; opponent replies are unrestricted. This does not disable the entire long-term mechanism.','在一个选定强应对后的己方下一回合，对比正常搜索与“禁止这一次沿新打开线路移动”的搜索。以后仍可使用这条线路，对手应对不受限制。这不等于关闭了整盘棋中的长期机制。'));
+ if(!current.withholding_tests.length)paragraph(tests,wording('No applicable newly opened line in this candidate.','该候选没有适用于本项检验的新开线路。'));
+ for(const t of current.withholding_tests){
+  const labels={no_immediate_value_dependence:'排除这次使用后仍有相近选择：不能把它说成眼前必需的理由',value_sensitive:'排除后两档预算下都变差：支持这个具体时点的重要性',unresolved:'结果不稳定，暂不归因',not_applicable:'没有可排除的合法使用，或排除后无合法选择'};
+  paragraph(tests,`${t.slider} → ${t.target}: ${lang==='zh'?(labels[t.status]||t.status):t.status}`);
+  paragraph(tests,wording('Excluded immediate moves: ','只排除这次的着法：')+(t.excluded_moves.join('、')||wording('none','无')));
+  if(t.unrestricted)tests.append(table([wording('Search','搜索'),...budget.map(n=>n.toLocaleString())],[[wording('Unrestricted','正常搜索'),...t.unrestricted.map(x=>scoreLabel(x.score))],[wording('Withheld','排除后的最佳选择'),...t.restricted.map(x=>`${x.san} · ${scoreLabel(x.score)}`)],[wording('Value drop (cp)','评价下降 cp'),...t.value_drop_cp]]));
+  if(t.alternative_line)decisionLine(tests,wording('Alternative without immediate line use','不立即使用这条线路的替代续局'),t.alternative_line);
+ }
+ box.append(tests);
+ const replies=element('details',undefined,'decision-tests');replies.id='decision-replies';replies.append(element('summary',wording(`All ${current.reply_screen.length} immediate opponent replies`,`全部 ${current.reply_screen.length} 个对手首个应手的筛查`)));
+ replies.append(table([wording('Reply','对手应手'),wording('Score for original mover','原行棋方评分'),wording('Higher-budget follow-up?','是否进一步复核')],current.reply_screen.map(r=>[r.san,scoreLabel(r.score),current.branches.some(b=>b.reply_uci===r.uci)?wording('yes','是'):wording('screen only','仅初筛')])));box.append(replies);
+ debugJSON(box,wording('Full decision-search record','完整决策搜索记录'),current);root.append(box);
 }
