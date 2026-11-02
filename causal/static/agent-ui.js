@@ -113,6 +113,7 @@ function paintHighlightedParagraph(parent,text,a,c,detail=null,detailIndex=null)
 }
 function paintMoveExplanation(root,a,c){
  const box=element('div',undefined,'final-explanation');box.id='move-explanation';
+ if(a.concept_agent?.agent.execution_mode==='program_baseline')paragraph(box,wording('Program experiment preview · the model step is unavailable. See the process log for the reason.','程序实验预览 · 模型步骤暂不可用，展开过程可查看原因。'),'plan-mode-notice');
  const key=element('p',undefined,'property-highlight-key');key.append(element('span',wording('Blue underlined text','蓝色下划线'),'property-key-sample'),document.createTextNode(wording(' marks the property or goal being discussed. Click it for its meaning and evidence.','标出正在讨论的属性或目标，点击可看含义和依据。')));box.append(key);
  if(c.decision_cards?.length){
   key.replaceChildren(document.createTextNode(wording('A plan, the opponent’s replies, and competing choices. Open the evidence below each paragraph.','先看计划、对手应对与替代选择；每段下方可展开对应证据。')));
@@ -146,6 +147,7 @@ function prepareReadableLayout(a,c){
 function sectionStep(id,title){const s=section(title);s.id=id;return s;}
 function paintConceptAgent(root,a){
  const report=a.concept_agent;if(!report)return;
+ if(report.plan_analysis){paintActivePlans(root,a);return;}
  const intro=sectionStep('analysis-overview',wording('How this result was produced','这份解释是怎样得到的'));intro.classList.add('analysis-intro');
  paragraph(intro,wording('Start with the concrete claims behind the selected explanation. The broader property comparisons and counterexample searches follow separately. All scores refer to the original side to move.','先看当前解释引用了哪些具体事实，以及这些事实之间的联系是否成立。后面另列属性比较和反例搜索。所有评分都以被分析局面的行棋方为视角。'));
  const nav=element('nav',undefined,'analysis-nav');nav.setAttribute('aria-label',wording('Analysis steps','分析步骤'));
@@ -234,7 +236,7 @@ function paintMonteCarloHeader(root,a,c){
  const cfg=a.evidence_settings,block=sectionStep('monte-carlo-guide',wording('6. What does Monte Carlo add?','6. 蒙特卡洛额外分析什么？'));
  paragraph(block,wording('The checks above compare all first moves using engine scores. Monte Carlo asks a different question: if we fix a first move and then sample many reasonable continuations for both sides, how often does each defined outcome occur?','前面的检验用引擎评分比较全部首步。蒙特卡洛额外问：固定第一步后，让双方按规定策略走出许多条合理续局，某种后果会出现多少次？'));
  if(!cfg.rollouts){paragraph(block,wording('Monte Carlo was not run for this result. No sampled probabilities are used in the explanation above. Enable it to compare material losses, checks and other endpoint events across the selected moves.','本次尚未运行蒙特卡洛，因此上面的说明没有使用采样概率。开启后，可以比较所选候选着法在多条续局中的子力损失、终点将杀等事件。'));const b=element('button',wording('Add Monte Carlo sampling','补充蒙特卡洛采样'),'secondary');b.id='run-monte-carlo';b.disabled=!!game?.pending;b.onclick=()=>ask(false,viewedPly,true);block.append(b);}
- else{paragraph(block,wording(`Each selected move gets ${cfg.rollouts} independent samples, including ${c.san}. A sample lasts at most ${cfg.horizon} plies including the first move; one ply is one player's move.`,`包括 ${c.san} 在内，每个选中的候选着法都有 ${cfg.rollouts} 条独立样本。每条最多 ${cfg.horizon} 个半回合（含首步）；半回合就是任意一方走一步。`));paragraph(block,wording(`At each later turn, Stockfish searches ${cfg.policy_nodes} nodes and supplies up to ${cfg.policy_topk} choices. Moves over ${cfg.max_loss_cp} cp behind the best are excluded. The better remaining moves are sampled more often, using softmax temperature ${cfg.temperature_cp} cp. All outcomes are retained.`,`在每个后续回合，Stockfish 用 ${cfg.policy_nodes} 节点给出最多 ${cfg.policy_topk} 个候选。落后最佳超过 ${cfg.max_loss_cp} cp 的着法被排除，其余着法中评分较好的被抽到的概率更高；使用温度 ${cfg.temperature_cp} cp 的 softmax 规则。所有抽出的结果都会保留。`));paragraph(block,wording('A sample stops at game end or a claimable draw. The percentages below describe this policy and horizon, not perfect-play winning chances. The 95% intervals show sampling uncertainty; a difference interval spanning zero cannot establish which action has the higher event rate.','终局或可申和时提前停止。下面的百分比描述这套策略和时域，不是双方最优对弈的胜率。95% 区间表示采样不确定性；差值区间跨过零时，尚不能确定哪一步的事件率更高。'));}root.append(block);
+ else{paragraph(block,wording(`Each selected move gets ${cfg.rollouts} independent samples, including ${c.san}. A sample lasts at most ${cfg.horizon} plies including the first move; one ply is one player's move.`,`包括 ${c.san} 在内，每个选中的候选着法都有 ${cfg.rollouts} 条独立样本。每条最多 ${cfg.horizon} 个半回合（含首步）；半回合就是任意一方走一步。`));paragraph(block,wording(`At each later turn, Stockfish searches ${cfg.policy_nodes} nodes and supplies up to ${cfg.policy_topk} choices. Moves over ${cfg.max_loss_cp} cp behind the best are excluded. The better remaining moves are sampled more often, using softmax temperature ${cfg.temperature_cp} cp. All outcomes are retained.`,`在每个后续回合，Stockfish 用 ${cfg.policy_nodes} 节点给出最多 ${cfg.policy_topk} 个候选。落后最佳超过 ${cfg.max_loss_cp} cp 的着法被排除，其余着法中评分较好的被抽到的概率更高；使用温度 ${cfg.temperature_cp} cp 的 softmax 规则。所有抽出的结果都会保留。`));paragraph(block,wording('A sample stops at game end or a claimable draw. The percentages below describe this policy and horizon, not perfect-play winning chances. The 95% intervals show sampling uncertainty; a difference interval spanning zero cannot establish which action has the higher event rate.','终局或可申和时提前停止。下面的百分比描述这套策略和时域，不是双方最优对弈的胜率。95% 区间表示采样不确定性；差值区间跨过零时，尚不能确定哪一步的事件率更高。'));}if(cfg.rollouts>0&&cfg.rollouts<64){const more=element("button",wording("Expand to 64 samples per move","增加到每步 64 条样本"),"secondary");more.id="run-monte-carlo";more.disabled=!!game?.pending;more.onclick=()=>ask(false,viewedPly,true);block.append(more);}root.append(block);
 }
 
 function syncEvidencePreview(){
@@ -354,6 +356,55 @@ function openDecisionEvidence(cardId){
  analysisDetailsOpen=true;agentRerender();toggleAnalysisDetails(true);
  const target=[...document.querySelectorAll('.decision-card-record')].find(x=>x.dataset.cardId===cardId);
  if(target){target.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}else $('decision-guide')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function paintActivePlans(root,a){
+ const report=a.concept_agent,d=report.plan_analysis,c=currentCandidate(),current=d.candidates.find(x=>x.uci===c.uci);
+ const box=sectionStep('decision-guide',wording('From a chess question to new search','从棋局问题到实际搜索'));
+ paragraph(box,wording('DeepSeek proposes legal continuation experiments. Python runs each request, returns counterexamples, and runs the revised requests before the model writes the explanation. Each paragraph cites the saved tests.','DeepSeek 先提出具体计划问题，Python 按请求搜索，将反例和可行分支交回模型；第二轮的新问题会再次搜索，然后才生成上面的解释。每段文字都附有实际检验记录。'));
+ if(report.agent.execution_mode==='program_baseline')paragraph(box,wording('This run used the deterministic experimental baseline. No model-generated hypotheses or final prose are claimed. The intended model workflow above was not completed.','本次实际使用程序对照实验：没有把程序问题或文字标成模型生成。上面描述的完整模型工作流，本次未完成。'));
+ paragraph(box,wording('The program checks variations and comparisons. Free-form wording still needs semantic review; this is not a proof of a complete cause.','程序检查合法变化和评分比较；自由文字的语义仍需审查。流程跑通不等于证明了完整原因，训练数据暂标为“等待文字审查”。'));
+ const opening=element('details',undefined,'decision-tests');opening.id='opening-context';opening.append(element('summary',wording('Opening context and branch coverage','开局背景与应对覆盖')));
+ const names=current.opening.exact_matches.map(x=>`${x.eco} · ${x.name}`);
+ paragraph(opening,names.join('；')||wording('No exact opening-name match. Search continues for this position.','没有匹配到开局名称；仍按当前局面进行搜索。'));
+ paragraph(opening,wording('Names come from the CC0 Lichess opening catalogue. A name is context, not a reason a move is good. Catalogue line counts are not game frequencies. Only board, turn, castling rights and en-passant state are used for positional transpositions; draw histories may differ.','名称来自 Lichess 的 CC0 开局目录。名称只提供背景，不能当作好棋的理由；目录线路数量不是实战出现频率。换序核对棋子位置、行棋方、王车易位权与吃过路兵状态；重复局面历史可能不同。'));
+ paragraph(opening,wording(`History supplied: ${d.opening.history_available_plies} plies. A FEN alone does not reveal the actual opening moves.`,`输入含 ${d.opening.history_available_plies} 个半回合的实际历史。只有 FEN 时，不能倒推出真实开局走法。`));
+ const link=element('a',wording('Opening data source','开局数据来源'));link.href='https://github.com/lichess-org/chess-openings';link.target='_blank';link.rel='noopener';opening.append(link);
+ opening.append(table([wording('Reply','对手应手'),wording('Followed up','进入计划检验'),wording('Reason','选择依据')],current.reply_screen.map(r=>{const b=current.branches.find(b=>b.reply_uci===r.uci);return [r.san,b?wording('yes','是'):wording('screen only','仅初筛'),b?b.selection_reasons.map(x=>x==='opening_branch'?wording('opening branch','开局分支'):wording('strong screened reply','初筛强应对')).join('、'):'—'];})));
+ paragraph(opening,wording('All immediate replies were screened, but only the selected contexts enter plan tests. This does not cover all future play.','所有对手首个应手经过初筛，但只有表中选中的分支进入计划检验；并未覆盖全部后续对局。'));box.append(opening);
+ const comparison=element('details',undefined,'decision-tests');comparison.append(element('summary',wording('Candidate comparison and tolerance','候选比较与容差')));
+ comparison.append(table([wording('Move','着法'),...d.settings.budgets.map(n=>`${n.toLocaleString()} ${wording('nodes','节点')}`)],d.candidates.map(x=>[x.san,...x.rankings.map(r=>scoreLabel(r.score))])));
+ paragraph(comparison,wording(`Allow a difference of ${d.settings.tolerance_cp/100} pawn units from the best available choice at the SAME tested position. Similar results at both budgets are labelled comparable. These are not win probabilities.`,`在同一个被测试局面中，与该局面的最佳选择比较，允许相差 ${d.settings.tolerance_cp/100} 个兵的评价单位。两档预算都接近才标为“相近”；这些数字不是胜率，也不是统计置信区间。`));box.append(comparison);
+ for(const round of d.rounds){const r=element('details',undefined,'decision-tests');r.id='plan-round-'+round.round;r.append(element('summary',wording(`Round ${round.round}: ${round.executed_ids.length} tests, ${round.new_engine_searches} new searches`,`第 ${round.round} 轮：${round.executed_ids.length} 个计划检验，实际新增 ${round.new_engine_searches} 次搜索`)));
+  paragraph(r,round.reason_zh);paragraph(r,wording('Retained / withdrawn: ','保留／撤回的问题：')+round.retained_ids.join('、')+' / '+round.withdrawn_ids.join('、'));
+  for(const id of round.executed_ids){const t=d.hypotheses.find(x=>x.id===id);paragraph(r,`${id} · ${t.question_zh}`);}
+  debugJSON(r,wording('Exact request and rejected items','原始请求与拒绝原因'),round);box.append(r);
+ }
+ const status=s=>wording(...({comparable:['Comparable in both searches','两档搜索均接近'],costly:['Worse in both searches','两档搜索均变差'],unavailable:['Not legal / unavailable here','此分支不合法或不可检验'],unresolved:['Unsettled','尚不能判断']}[s]||[s,s]));
+ const testRecord=(parent,t)=>{
+  const details=element('details',undefined,'plan-test-record');details.append(element('summary',`${t.id} · ${t.question_zh}`));
+  paragraph(details,t.kind==='withhold'?wording('Compare normal play with excluding this one move at our next turn. Later use is allowed. A drop supports importance at this decision only.','对比正常下法与“己方下一回合暂不走指定着法”。以后仍可再走。变差只支持这个时点的重要性，不证明长期的唯一必要性。'):t.kind==='move_order'?wording('Try both orders, after the selected opponent replies. Positional equivalence is checked from the resulting boards.','分别测试两种先后顺序，并考虑已选中的对手应对。只有实际棋盘状态一致才记录为可转入同一局面。'):wording('After each selected opponent reply, compare the proposed next move with the best available alternative.','在每个选定对手应对后，对比指定的后续着法与当时的最佳选择，检查这个计划在哪些条件下可行。'));
+  for(const [label,rows] of [[wording('Requested order','所提顺序'),t.branches],[wording('Reverse order','反向顺序'),t.reverse_branches]]){
+   if(!rows.length)continue;details.append(element('h4',label));
+   details.append(table([wording('Opponent','对手应对'),wording('Our plan','己方计划'),wording('Finding','结果'),wording('Loss in pawn units','比当时最佳选择低多少兵单位')],rows.map(b=>[b.reply_san,b.target_san||b.target_uci,status(b.status),b.loss_cp?.map(x=>x===null?'—':(x/100).toFixed(2)).join(' / ')||'—'])));
+   for(const b of rows){decisionLine(details,`${b.reply_san} → ${b.target_san||t.target_uci}`,b.line);decisionLine(details,wording('Compare alternative after ','对照：遇到 ')+b.reply_san,b.alternative);}
+  }
+  const obs=t.sample_observation;paragraph(details,wording(`The requested move appeared in ${obs.plan_move_observed} of ${obs.samples} sampled continuations. Absence in this small sample does not mean the plan is impossible.`,`${obs.samples} 条采样续局中，有 ${obs.plan_move_observed} 条在己方后续回合出现过指定着法。小样本中没出现，不能判定计划不可行。`));
+  if(t.kind==='move_order')paragraph(details,wording(`Matched board states: ${t.transpositions.length}. No match means these sampled search lines did not demonstrate a transposition.`,`找到 ${t.transpositions.length} 个相同棋盘状态。没有匹配只表示这些搜索变化未展示换序，不表示绝不可能。`));
+  paragraph(details,wording(`This request caused ${t.execution.new_engine_searches} new engine searches. Later opponent replies remain unrestricted.`,`此请求实际产生 ${t.execution.new_engine_searches} 次新搜索，干预后的对手应对不受限制。`));debugJSON(details,wording('Complete executable test','完整可执行检验记录'),t);parent.append(details);
+ };
+ for(const card of c.decision_cards){const r=element('details',undefined,'decision-card-record');r.dataset.cardId=card.id;r.id='plan-paragraph-'+card.id.replaceAll(':','-');r.append(element('summary',wording('Evidence for: ','这段话的依据：')+card.text[lang].slice(0,58)+'…'));paragraph(r,card.text[lang]);
+  for(const id of card.evidence_ids){const t=d.hypotheses.find(t=>t.id===id);if(t)testRecord(r,t);else if(id.startsWith('root:')){const e=d.candidates.find(x=>x.uci===id.slice(5));if(e){decisionLine(r,e.san,e.root_line);debugJSON(r,wording('Candidate comparison','候选对照'),e.comparison);}}else if(id.startsWith('opening:'))paragraph(r,names.join('；'));}box.append(r);
+ }
+ const rest=element('details',undefined,'decision-tests');rest.append(element('summary',wording('All tests for this move, including uncited results','这步棋的全部检验，含未进入正文的结果')));for(const t of d.hypotheses.filter(x=>x.move_uci===c.uci))testRecord(rest,t);box.append(rest);
+ const background=element('details',undefined,'decision-tests');background.append(element('summary',wording('20 background properties and implication scans','20 项底层属性与必要／充分条件初筛')));
+ paragraph(background,wording('These are background diagnostics, not the explanation generator. For each property C, necessity looks for a good move without C; sufficiency looks for a move with C that misses the score target. This initial scan has no dedicated confirmation search and cannot establish the cause of value.','这些是背景诊断，不直接生成解释。对属性 C，必要性寻找“没有 C 但评分达标”的着法；充分性寻找“有 C 但评分不达标”的着法。这一初筛没有额外反例复核，不能证明该属性造成了评价差异。'));
+ for(const concept of report.concept_coverage){const p=element('details',undefined,'lineage-row');p.append(element('summary',`${lang==='zh'?concept.name_zh:concept.name} · ${concept.test_count} ${wording('scans','项初筛')}`));paragraph(p,conceptDefinition(report,concept.id));
+  for(const v of concept.views){p.append(table([wording('Move','着法'),wording('Property holds?','属性是否成立')],a.root_moves.map(m=>[m.san,v.values[m.uci]===true?wording('yes','是'):v.values[m.uci]===false?wording('no','否'):wording('unknown','未知')])));}
+  debugJSON(p,wording('Implication tests and candidate counterexamples','条件检验与候选反例'),report.test_bank.filter(t=>t.concept_id===concept.id));background.append(p);
+ }box.append(background);
+ const raw=element('details',undefined,'decision-tests');raw.id='plan-raw-calls';raw.append(element('summary',wording('Model inputs, outputs and validation errors','模型输入、输出与校验错误')));debugJSON(raw,wording('Exact request log','完整调用记录'),report.debug_trace);box.append(raw);
+ if(report.debug_trace.quality.status==='degraded')paragraph(box,wording('Some stages are incomplete. Inspect the call log above; missing evidence is not treated as success.','本次有步骤不完整，请展开调用记录查看。缺失证据不会被视为检验成功。'));
+ root.append(box);
 }
 function decisionLine(parent,title,record){
  if(!record?.pv_steps?.length)return;
