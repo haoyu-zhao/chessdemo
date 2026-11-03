@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.trycloudflare.com https://raw.githubusercontent.com https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>Annotation Studio · Chess Studio</title>
+  <link rel="icon" href="../causal/static/pieces/wN.svg">
+  <link rel="stylesheet" href="../causal/static/style.css">
+  <link rel="stylesheet" href="./static/annotate.css?v=1">
+  <script src="./static/config.js?v=1" defer></script>
+  <script src="./static/annotate.js?v=1" type="module"></script>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="../causal/"><span class="brandmark">♞</span><span>Chess Studio<span class="brand-sub">HUMAN ANNOTATION</span></span></a><div class="top-actions"><span id="connection-status" class="connection-status">正在连接 Z890</span><button id="language" class="quiet" aria-label="Switch interface language">中文</button><button id="connect" class="secondary">连接设置</button></div></header>
+<main>
+  <div class="page-title"><div><div class="eyebrow">观察局面 · 选择理由 · 写下解释</div><h1>把你的棋局理解，留下来。</h1><p>在左侧选择局面和着法，在右侧勾选相关概念，写下你自己的解释。</p></div><button id="view-records" class="secondary">查看标注记录 <span id="record-count">0</span></button></div>
+  <div class="annotation-studio">
+    <section class="board-column" aria-label="棋盘与标注对象">
+      <div class="position-heading"><span id="turn-label">白方行棋</span><span id="position-name">后翼弃兵起始局面</span></div>
+      <div class="board-wrap"><div id="board" class="chessboard" role="group" aria-label="国际象棋棋盘"></div></div>
+      <div class="board-toolbar"><button id="flip" class="icon-button" title="翻转棋盘" aria-label="翻转棋盘">⇅</button><div class="segmented" aria-label="着法预览"><button id="before" class="active" aria-pressed="true">走之前</button><button id="after" aria-pressed="false">走之后</button></div><button id="advance" class="text-button">继续这一步 →</button></div>
+      <p id="board-message" class="board-message" aria-live="polite">点击棋子，再点击目标格，即可选择要解释的着法。</p>
+      <div class="position-card">
+        <div class="field-row"><label for="scope">标注对象</label><select id="scope"><option value="move">解释一个着法</option><option value="position">解释当前局面</option></select></div>
+        <div class="field-row" id="move-row"><label for="target-move">选择着法</label><select id="target-move"></select></div>
+        <p id="target-summary" class="target-summary"></p>
+        <div class="history-bar"><button id="undo" class="quiet">← 上一步</button><span id="history-label">自导入起 0 个半回合</span><button id="fresh" class="quiet">同局面新标注</button></div>
+        <details id="position-import"><summary>更换局面 · 导入 FEN / PGN</summary>
+          <label for="sample">内置局面</label><select id="sample"><option value="opening">开局 · 1.d4 d5</option><option value="middle">中局 · 双方已易位</option><option value="ending">残局 · 王兵残局</option><option value="initial">标准初始局面</option></select><button id="load-sample" class="secondary">载入局面</button>
+          <label for="fen-input">FEN 棋盘编码</label><textarea id="fen-input" rows="3" spellcheck="false" placeholder="粘贴完整 FEN"></textarea><button id="load-fen" class="secondary">载入 FEN</button>
+          <label for="pgn-input">PGN 棋谱</label><textarea id="pgn-input" rows="4" spellcheck="false" placeholder="例如：1. d4 d5 2. c4 e6"></textarea><button id="load-pgn" class="secondary">载入棋谱末尾局面</button><p class="hint">载入前会保留已有草稿；导入棋谱后可用“上一步”回看。仅导入第一盘棋。</p>
+        </details>
+        <details><summary>查看当前 FEN 与结构化数据</summary><pre id="fen-display"></pre><pre id="json-preview"></pre></details>
+      </div>
+    </section>
+    <aside class="label-column">
+      <section class="annotation-card concepts-card"><div class="card-heading"><div><span class="step-number">01</span><h2>哪些概念解释了这个选择？</h2></div><span id="selected-count" class="count-chip">已选 0 / 24</span></div>
+        <p class="card-description">勾选你认为与解释有关的理由。选中 = 1，未选 = 0。<br>不是看到某个现象就勾选，而是它确实参与你的解释。</p>
+        <div id="concept-groups"></div>
+        <details class="extra-details"><summary>没有合适的概念？补充说明</summary><label for="extra-concepts" class="sr-only">补充概念</label><input id="extra-concepts" maxlength="500" placeholder="可以填写未覆盖的理由，供以后改进概念库"></details>
+      </section>
+      <section class="annotation-card explanation-card"><div class="card-heading"><div><span class="step-number">02</span><h2>用自己的话解释</h2></div><span id="text-count" class="subtle">0 字</span></div>
+        <p class="card-description">为什么这样走？对手可能怎样应对？换一种走法会有什么不同？只写你有把握的内容，不要求使用固定句式。</p>
+        <label for="explanation" class="sr-only">人工自然语言解释</label><textarea id="explanation" rows="7" maxlength="12000" placeholder="写下你对当前局面或所选着法的解释……"></textarea>
+        <div class="annotator-row"><label for="annotator">标注员称呼</label><input id="annotator" maxlength="80" placeholder="姓名或研究代号" autocomplete="nickname"></div>
+        <div id="save-message" class="save-message" role="status" aria-live="polite">填写内容后会自动保留浏览器草稿。</div>
+        <div class="save-actions"><button id="save" class="primary">保存到 Z890</button><button id="export-draft" class="secondary">下载本条备份</button></div>
+        <p class="hint">点击保存后才提交为正式标注。勾选标签是人工判断，不会被标记为已经证明的因果关系。</p>
+      </section>
+    </aside>
+  </div>
+  <section id="records-panel" class="records-panel" aria-label="标注记录"><div class="records-heading"><div><div class="eyebrow">COLLECTION</div><h2>标注记录</h2><p>服务器记录可以重新打开；本机草稿可继续编辑或重试保存。</p></div><button id="refresh-records" class="secondary">刷新记录</button></div>
+    <div class="records-tools"><input id="record-search" aria-label="搜索标注记录" placeholder="搜索解释、标注员、着法或概念"><div class="export-buttons"><button id="export-json" class="secondary">下载 JSON</button><button id="export-jsonl" class="secondary">JSONL</button><button id="export-csv" class="secondary">CSV</button></div></div>
+    <div class="backup-tools"><button id="export-local" class="text-button">下载所有本机草稿</button><label class="text-button import-button" for="import-backup">导入 JSON 备份</label><input type="file" id="import-backup" accept=".json,application/json" hidden><span id="download-message" role="status"></span></div>
+    <div id="records-list"></div>
+  </section>
+  <footer><span>Chess Studio · 人工解释数据集</span><span>概念库 v1 · 数据存储于 Z890 · <a href="../causal/">返回分析 demo</a></span></footer>
+</main>
+<dialog id="connection-dialog"><form id="connection-form"><div class="eyebrow">Z890 DATA COLLECTION</div><h2>连接标注数据集</h2><p>访问码用于读写研究标注。网页托管在 GitHub Pages，记录写入 Z890。</p><label for="access-code">标注访问码</label><input id="access-code" type="password" required autocomplete="current-password"><div id="login-error" class="error hidden" role="alert"></div><div class="dialog-actions"><button id="close-connection" type="button" class="secondary">先保留草稿</button><button class="primary" type="submit">连接 Z890</button></div></form></dialog>
+<dialog id="promotion-dialog"><h2>选择升变棋子</h2><div id="promotion-options"></div><button id="close-promotion" class="secondary">取消</button></dialog>
+<div id="toast" class="toast hidden" role="status"></div>
+</body></html>

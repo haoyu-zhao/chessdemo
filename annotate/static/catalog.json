@@ -1,0 +1,224 @@
+{
+  "version": "human-concepts-1",
+  "semantics": "human_explanatory_relevance",
+  "description": "1 表示标注员认为该概念是当前解释的相关理由；0 表示未选为理由，不表示棋盘上不存在此现象。不是引擎判断或因果证明。",
+  "concepts": [
+    {
+      "id": "material_gain",
+      "name": "赢得子力",
+      "group": "子力与交换",
+      "description": "通过这一选择，有机会净赢兵或其他棋子。",
+      "name_en": "Material gain",
+      "description_en": "A choice that can win a pawn or piece after accounting for exchanges.",
+      "group_en": "Material & exchanges"
+    },
+    {
+      "id": "avoid_material_loss",
+      "name": "避免丢子",
+      "group": "子力与交换",
+      "description": "化解会造成净子力损失的威胁。",
+      "name_en": "Avoid material loss",
+      "description_en": "Prevent a threat that would lead to a net loss of material.",
+      "group_en": "Material & exchanges"
+    },
+    {
+      "id": "favorable_exchange",
+      "name": "有利交换",
+      "group": "子力与交换",
+      "description": "交换后得到更合适的子力配置或局面。",
+      "name_en": "Favorable exchange",
+      "description_en": "Exchange pieces to obtain a more favorable arrangement or position.",
+      "group_en": "Material & exchanges"
+    },
+    {
+      "id": "sacrifice_compensation",
+      "name": "弃子与补偿",
+      "group": "子力与交换",
+      "description": "牺牲子力以换取进攻、时间或位置收益。",
+      "name_en": "Sacrifice & compensation",
+      "description_en": "Give up material for an attack, time or positional compensation.",
+      "group_en": "Material & exchanges"
+    },
+    {
+      "id": "pin",
+      "name": "牵制",
+      "group": "战术关系",
+      "description": "一个棋子因身后更重要的目标而受到行动限制。",
+      "name_en": "Pin",
+      "description_en": "Restrict a piece because a more important target is behind it.",
+      "group_en": "Tactical relationships"
+    },
+    {
+      "id": "fork",
+      "name": "双重攻击",
+      "group": "战术关系",
+      "description": "同时威胁两个或更多目标，使对手难以兼顾。",
+      "name_en": "Double attack / fork",
+      "description_en": "Threaten multiple targets so the opponent cannot easily cover them all.",
+      "group_en": "Tactical relationships"
+    },
+    {
+      "id": "discovered_attack",
+      "name": "闪击／串击",
+      "group": "战术关系",
+      "description": "移动挡子暴露攻击，或迫使前方目标让出后方目标。",
+      "name_en": "Discovered attack / skewer",
+      "description_en": "Uncover an attack or force a front target to expose one behind it.",
+      "group_en": "Tactical relationships"
+    },
+    {
+      "id": "deflection_overload",
+      "name": "引离／防守过载",
+      "group": "战术关系",
+      "description": "移走关键防守子，或让它无法同时完成多个防守任务。",
+      "name_en": "Deflection / overload",
+      "description_en": "Divert a defender or make it unable to cover several duties.",
+      "group_en": "Tactical relationships"
+    },
+    {
+      "id": "king_safety",
+      "name": "王的安全",
+      "group": "王与防守",
+      "description": "改善王的保护、逃生空间，或利用对方王的暴露。",
+      "name_en": "King safety",
+      "description_en": "Improve protection or escape squares, or exploit an exposed enemy king.",
+      "group_en": "King & defense"
+    },
+    {
+      "id": "mating_threat",
+      "name": "将杀威胁",
+      "group": "王与防守",
+      "description": "建立或利用将杀威胁，让对手必须处理。",
+      "name_en": "Mating threat",
+      "description_en": "Create or use a checkmate threat that demands a response.",
+      "group_en": "King & defense"
+    },
+    {
+      "id": "prevent_threat",
+      "name": "化解直接威胁",
+      "group": "王与防守",
+      "description": "应对当前明确的将军、吃子或其他直接威胁。",
+      "name_en": "Meet a direct threat",
+      "description_en": "Answer a concrete check, capture or other immediate threat.",
+      "group_en": "King & defense"
+    },
+    {
+      "id": "defensive_resource",
+      "name": "防守与反击资源",
+      "group": "王与防守",
+      "description": "用保护、阻挡、交换或反击维持局面。",
+      "name_en": "Defensive resources",
+      "description_en": "Hold the position through protection, blocking, exchanges or counterplay.",
+      "group_en": "King & defense"
+    },
+    {
+      "id": "central_pressure",
+      "name": "中心压力",
+      "group": "兵与中心",
+      "description": "挑战中心据点，并使对手的布局或应对受到实际影响。",
+      "name_en": "Central pressure",
+      "description_en": "Challenge central strongpoints with consequences for the opponent’s plans.",
+      "group_en": "Pawns & center"
+    },
+    {
+      "id": "pawn_break",
+      "name": "兵的突破",
+      "group": "兵与中心",
+      "description": "通过兵的推进或交换改变兵形、打开进攻方向。",
+      "name_en": "Pawn break",
+      "description_en": "Use a pawn advance or exchange to change the structure or open play.",
+      "group_en": "Pawns & center"
+    },
+    {
+      "id": "passed_pawn",
+      "name": "通路兵",
+      "group": "兵与中心",
+      "description": "创造、保留、推进或阻挡通路兵及其升变威胁。",
+      "name_en": "Passed pawn",
+      "description_en": "Create, preserve, advance or block a passed pawn and its promotion threat.",
+      "group_en": "Pawns & center"
+    },
+    {
+      "id": "pawn_weakness",
+      "name": "兵形弱点",
+      "group": "兵与中心",
+      "description": "制造、攻击或修复孤兵、叠兵、落后兵等弱点。",
+      "name_en": "Pawn weaknesses",
+      "description_en": "Create, target or repair isolated, doubled, backward or other weak pawns.",
+      "group_en": "Pawns & center"
+    },
+    {
+      "id": "development",
+      "name": "出子与协调",
+      "group": "子力与空间",
+      "description": "让棋子进入有效位置，并相互配合完成任务。",
+      "name_en": "Development & coordination",
+      "description_en": "Bring pieces into useful positions where they work together.",
+      "group_en": "Pieces & space"
+    },
+    {
+      "id": "mobility",
+      "name": "活动性与空间",
+      "group": "子力与空间",
+      "description": "增加有效可用的行动，或限制对方棋子的活动。",
+      "name_en": "Mobility & space",
+      "description_en": "Increase useful options or restrict the opponent’s piece activity.",
+      "group_en": "Pieces & space"
+    },
+    {
+      "id": "open_lines",
+      "name": "线路的利用",
+      "group": "子力与空间",
+      "description": "利用开放线或斜线产生具体压力，而非仅仅腾空格子。",
+      "name_en": "Use of open lines",
+      "description_en": "Use a file or diagonal to exert concrete pressure, beyond just clearing it.",
+      "group_en": "Pieces & space"
+    },
+    {
+      "id": "outpost",
+      "name": "关键格与据点",
+      "group": "子力与空间",
+      "description": "占据、控制或争夺对计划有实际作用的重要格子。",
+      "name_en": "Key squares & outposts",
+      "description_en": "Occupy or contest a square that contributes to a concrete plan.",
+      "group_en": "Pieces & space"
+    },
+    {
+      "id": "tempo",
+      "name": "先手与走子顺序",
+      "group": "计划与时机",
+      "description": "利用先手、节省步数，或通过顺序避免对手额外机会。",
+      "name_en": "Tempo & move order",
+      "description_en": "Use time or move order to avoid giving the opponent extra options.",
+      "group_en": "Plans & timing"
+    },
+    {
+      "id": "prophylaxis",
+      "name": "限制对方计划",
+      "group": "计划与时机",
+      "description": "预先阻止对方尚未形成的计划或改善手段。",
+      "name_en": "Restrict a plan",
+      "description_en": "Preempt the opponent’s intended improvement or plan.",
+      "group_en": "Plans & timing"
+    },
+    {
+      "id": "opening_plan",
+      "name": "开局布局与计划",
+      "group": "计划与时机",
+      "description": "结合具体开局的兵形、出子顺序与典型后续计划。",
+      "name_en": "Opening plan",
+      "description_en": "Explain the opening structure, development order or typical continuation.",
+      "group_en": "Plans & timing"
+    },
+    {
+      "id": "endgame_transition",
+      "name": "残局与局面转换",
+      "group": "计划与时机",
+      "description": "转入适合己方的残局、简化局面，或避免不利转换。",
+      "name_en": "Endgame / transition",
+      "description_en": "Reach a favorable endgame or transformation, or avoid an unfavorable one.",
+      "group_en": "Plans & timing"
+    }
+  ],
+  "description_en": "1 means the annotator selected a concept as relevant to the explanation. 0 means not selected, not that the feature is absent. These are human labels, not causal proofs."
+}
