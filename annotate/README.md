@@ -8,7 +8,13 @@ rules library (BSD-2-Clause; license in static/vendor/).
 
 Start from the standard initial position. Stockfish suggests three next moves;
 select one, tick relevant concepts, and explain why it fits this position.
-Continue the move to collect the next position, or use New game to start again.
+The primary Save & switch button saves and verifies this annotation, plays the
+selected move, rotates the board to the next side, and loads that side's engine
+suggestions with a fresh annotation. White and Black alternate throughout the
+game. A failed save never advances the position. Edits made during a save must
+be saved again before advancing. Save without switching retains the position;
+Skip annotation advances while retaining any meaningful local draft. Candidate
+clicks are explicitly labeled as previews. New game starts again.
 FEN/PGN import remains available in the collapsed position menu.
 The 24 labels are **explanatory relevance**:
 unchecked means not selected as a reason, not that a board feature is absent.

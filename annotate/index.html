@@ -7,20 +7,22 @@
   <title>Annotation Studio · Chess Studio</title>
   <link rel="icon" href="../causal/static/pieces/wN.svg">
   <link rel="stylesheet" href="../causal/static/style.css">
-  <link rel="stylesheet" href="./static/annotate.css?v=2">
+  <link rel="stylesheet" href="./static/annotate.css?v=3">
   <script src="./static/config.js?v=1" defer></script>
-  <script src="./static/annotate.js?v=2" type="module"></script>
+  <script src="./static/annotate.js?v=3" type="module"></script>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="../causal/"><span class="brandmark">♞</span><span>Chess Studio<span class="brand-sub">HUMAN ANNOTATION</span></span></a><div class="top-actions"><span id="connection-status" class="connection-status">正在准备</span><button id="language" class="quiet" aria-label="Switch interface language">中文</button><button id="share-link" class="secondary">分享链接</button></div></header>
 <main>
   <div class="page-title"><div><div class="eyebrow">观察局面 · 选择着法 · 解释理由</div><h1>为什么在这里走这一步？</h1><p>查看引擎的下一步建议，选择一个着法，勾选相关概念并写下你的解释。</p></div><div class="page-buttons"><button id="new-game" class="primary">新对局</button><button id="view-records" class="secondary">查看标注记录 <span id="record-count">0</span></button></div></div>
+  <div class="turn-guide"><span>① 选择当前一方的着法</span><span>② 勾选概念，填写解释</span><span>③ 保存并换边，继续标注</span></div>
   <div class="annotation-studio">
     <section class="board-column" aria-label="棋盘与标注对象">
-      <div class="position-heading"><span id="turn-label">白方行棋</span><span id="position-name">后翼弃兵起始局面</span></div>
+      <div class="position-heading"><span id="turn-label" aria-live="polite">白方行棋</span><span id="position-name">标准初始局面</span></div>
       <div class="board-wrap"><div id="board" class="chessboard" role="group" aria-label="国际象棋棋盘"></div></div>
-      <div class="board-toolbar"><button id="flip" class="icon-button" title="翻转棋盘" aria-label="翻转棋盘">⇅</button><div class="segmented" aria-label="着法预览"><button id="before" class="active" aria-pressed="true">走之前</button><button id="after" aria-pressed="false">走之后</button></div><button id="advance" class="text-button">继续这一步 →</button></div>
+      <div class="board-toolbar"><button id="flip" class="icon-button" title="翻转棋盘" aria-label="翻转棋盘">⇅</button><div class="segmented" aria-label="着法预览"><button id="before" class="active" aria-pressed="true">走之前</button><button id="after" aria-pressed="false">走之后</button></div></div>
       <p id="board-message" class="board-message" aria-live="polite">点击棋子，再点击目标格，即可选择要解释的着法。</p>
+      <div class="turn-progress"><strong id="turn-task"></strong><p id="turn-help"></p><button id="advance" class="secondary">跳过本步标注，进入黑方回合 →</button><p id="played-moves" class="played-moves"></p></div>
       <section class="engine-panel"><div class="card-heading"><h2 id="engine-title">下一步建议</h2><button id="engine-refresh" class="text-button">刷新建议</button></div><p id="engine-status" class="hint" aria-live="polite"></p><div id="engine-candidates"></div><details id="engine-variation"><summary>查看可能的后续变化</summary><p id="variation-note" class="hint"></p><div id="engine-pv" class="pv"></div><p id="engine-budget" class="hint"></p></details></section>
       <div class="position-card">
         <select id="scope" hidden aria-hidden="true"><option value="move">解释一个着法</option><option value="position">解释当前局面</option></select>
@@ -45,7 +47,8 @@
         <p id="explanation-target" class="explanation-target"></p><p class="card-description">结合当前局面，解释所选着法为什么合理、对手可能怎样应对，以及其他选择有什么不同。</p>
         <label for="explanation" class="sr-only">人工自然语言解释</label><textarea id="explanation" rows="7" maxlength="12000" placeholder="写下你对当前局面或所选着法的解释……"></textarea>
         <div id="save-message" class="save-message" role="status" aria-live="polite">填写内容后会自动保留浏览器草稿。</div>
-        <div class="save-actions"><button id="save" class="primary">保存标注</button><button id="export-draft" class="secondary">下载标注</button></div>
+        <button id="save-next" class="primary save-next">保存并进入黑方回合 →</button>
+        <div class="save-actions"><button id="save" class="secondary">仅保存标注</button><button id="export-draft" class="secondary">下载标注</button></div>
         <p class="hint">保存当前局面、所选引擎着法、概念勾选和你的原文解释。</p>
       </section>
     </aside>

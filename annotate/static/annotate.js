@@ -22,6 +22,7 @@ const doc = () => entry().document;
 const moveUci = m => m.from + m.to + (m.promotion || '');
 const applyUci = (board, uci) => board.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]});
 const pieceNames = {p:['pawn','兵'],n:['knight','马'],b:['bishop','象'],r:['rook','车'],q:['queen','后'],k:['king','王']};
+const sideName = color => color==='w'?t('White','白方'):t('Black','黑方');
 const name = c => lang === 'zh' ? c.name : c.name_en;
 function boardOf(d = doc()) { const b = new Chess(d.context.initial_fen); d.context.moves_uci.forEach(u=>applyUci(b,u)); return b; }
 function meaningful(e) { return e.revision > 0 || !!e.document.explanation.trim() || !!e.document.extra_concepts.trim() || Object.values(e.document.concepts).some(Boolean); }
@@ -53,7 +54,7 @@ function newDraft(context, source, target='', scope='move') {
     concepts:Object.fromEntries(catalog.concepts.map(c=>[c.id,0])),extra_concepts:'',explanation:'',
     source,engine_analysis_id:null};
   workspace.current=d.id; workspace.entries[d.id]={document:d,revision:0,dirty:true,touched_at:new Date().toISOString()};
-  preview=false; selected=null; variationStep=null;bindAvailableAnalysis();persist(); renderAll();loadEngine();
+  flipped=b.turn()==='b';preview=false; selected=null; variationStep=null;bindAvailableAnalysis();persist(); renderAll();loadEngine();
 }
 function changeTarget(uci, scope=doc().scope) {
   if(doc().move_uci===uci&&doc().scope===scope)return;
@@ -73,8 +74,30 @@ function renderMeta() {
   $('text-count').textContent=t(`${doc().explanation.length} characters`,`${doc().explanation.length} 字`);
   $('json-preview').textContent=JSON.stringify({scope:doc().scope,move_uci:doc().move_uci,engine_analysis_id:doc().engine_analysis_id,concepts:doc().concepts,explanation:doc().explanation},null,2);
   const c=currentAnalysis()?.candidates.find(c=>c.uci===doc().move_uci);
-  $('explanation-target').textContent=c?t(`Explain ${c.san} in the current position.`,`解释在当前局面下为什么走 ${c.san}。`):t('Choose an engine suggestion on the left.','先在左侧选择引擎建议的着法。');
-  $('save').disabled=saving; savedStatus();
+  const side=sideName(boardOf().turn());
+  $('explanation-target').textContent=c?t(`Explain why ${side} plays ${c.san} in this position.`,`解释${side}在当前局面下为什么走 ${c.san}。`):t(`Choose a move for ${side} on the left.`,`先在左侧选择${side}的着法。`);
+  $('save').disabled=saving;renderTurnFlow();savedStatus();
+}
+function renderTurnFlow(){
+  const b=boardOf(),d=doc(),side=sideName(b.turn()),nextSide=sideName(b.turn()==='w'?'b':'w');
+  const candidate=b.moves({verbose:true}).find(m=>moveUci(m)===d.move_uci);
+  const terminal=b.isGameOver()||currentAnalysis()?.status==='terminal';
+  let ends=false;if(candidate){const after=boardOf();applyUci(after,d.move_uci);ends=after.isGameOver();}
+  $('save-next').disabled=saving||!candidate||!d.engine_analysis_id||terminal;
+  $('advance').disabled=saving||!candidate||terminal;
+  $('save-next').textContent=saving?t('Saving…','正在保存……'):ends?t('Save & finish game','保存并结束对局'):t(`Save & switch to ${nextSide} →`,`保存并进入${nextSide}回合 →`);
+  $('advance').textContent=ends?t('Finish game without saving →','跳过本步标注，结束对局 →'):t(`Skip annotation & switch to ${nextSide} →`,`跳过本步标注，进入${nextSide}回合 →`);
+  $('turn-task').textContent=terminal?t('Game over','对局已结束'):candidate?t(`Annotate ${side}’s ${candidate.san}`,`本步标注：${side} ${candidate.san}`):t(`${side} to move`,`现在轮到${side}`);
+  $('turn-help').textContent=terminal?t('Start a new game to collect more annotations.','点击“新对局”继续采集标注。'):candidate?t(`Select concepts and write an explanation. “Save & switch” plays ${candidate.san} and opens ${nextSide}’s annotation. Skipping keeps any unfinished text as a local draft.`,`勾选概念并填写解释，点击右侧“保存并换边”后走出 ${candidate.san}，开始${nextSide}的标注。跳过时，已填写内容会保留为本机草稿。`):t(`Waiting for ${side}’s move suggestions.`,`正在等待${side}的候选着法。`);
+  const history=b.history({verbose:true});
+  $('played-moves').textContent=history.length?t('Played: ','已走：')+history.slice(-16).map(m=>`${m.before.split(' ')[5]}${m.color==='w'?'.':'…'} ${m.san}`).join('  '):t('No moves played yet. Candidate moves are previews until you switch turns.','尚未正式走子。候选着法仅供预览，换边后才会计入对局。');
+  $('board').dataset.orientation=flipped?'black':'white';
+}
+function advanceTurn(){
+  if(saving||!doc().move_uci||boardOf().isGameOver())return;
+  const context=structuredClone(doc().context),move=doc().move_uci,b=boardOf();
+  applyUci(b,move);context.moves_uci.push(move);newDraft(context,doc().source);
+  $('turn-label').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function renderConcepts() {
   const groups=$('concept-groups');groups.replaceChildren();
@@ -116,8 +139,9 @@ function renderBoard() {
     if(ri===7){const span=document.createElement('span');span.className='coordinate file';span.textContent=file;button.append(span);}
     button.addEventListener('click',()=>squareClicked(sq));board.append(button);
   }
-  $('turn-label').textContent=t(b.turn()==='w'?'White to move':'Black to move',b.turn()==='w'?'白方行棋':'黑方行棋');
-  $('position-name').textContent=d.source.startsWith('sample:')?t(samples[d.source.slice(7)].en,samples[d.source.slice(7)].zh):t('Custom position','自定义局面');
+  const side=sideName(b.turn()),number=b.fen().split(' ')[5];
+  $('turn-label').textContent=b.isGameOver()?t('Game over','对局已结束'):preview&&candidate?t(`${number}${b.turn()==='w'?'.':'…'} ${side} · ${candidate.san} preview`,`第 ${number} 回合 · ${side} ${candidate.san} 预览`):t(`Move ${number} · ${side} to move`,`第 ${number} 回合 · ${side}行棋`);
+  $('position-name').textContent=d.context.moves_uci.length?t('Game in progress','对局进行中'):d.source.startsWith('sample:')?t(samples[d.source.slice(7)].en,samples[d.source.slice(7)].zh):t('Custom position','自定义局面');
   $('before').classList.toggle('active',!preview);$('after').classList.toggle('active',preview);
   $('before').setAttribute('aria-pressed',String(!preview));$('after').setAttribute('aria-pressed',String(preview));
   $('after').disabled=!candidate;$('advance').disabled=!candidate;$('undo').disabled=!d.context.moves_uci.length;
@@ -128,11 +152,12 @@ function renderBoard() {
   $('target-move').value=d.move_uci||'';
   $('target-summary').textContent=d.scope==='position'?t('Explain the position shown before any candidate move.','解释走子前的整个局面。'):candidate?t(`Explaining ${candidate.san} · ${candidate.from} → ${candidate.to}${candidate.promotion?' · promotion to '+candidate.promotion.toUpperCase():''}`,`正在解释 ${candidate.san} · ${candidate.from} → ${candidate.to}${candidate.promotion?' · 升变为 '+candidate.promotion.toUpperCase():''}`):t('Select a move on the board or in the list.','请在棋盘或列表中选择要解释的着法。');
   $('history-label').textContent=t(`${d.context.moves_uci.length} plies since import`,`自导入起 ${d.context.moves_uci.length} 个半回合`);
-  $('board-message').textContent=variationStep?t('Variation preview. Your annotation still explains the selected first move.','正在预览后续变化，标注仍解释所选的第一步。'):preview?t('Previewing the chosen move. Your annotation explains why it fits the position before it.','正在预览所选着法；解释对象是它为什么适合走子前的局面。'):t('Choose an engine suggestion below to preview it. You can also explore moves on the board.','点击下方引擎候选着法即可预览，也可以在棋盘上探索其他走法。');
+  $('board-message').textContent=variationStep?t(`Variation preview only. You are still annotating ${side}’s first move.`,`仅预览后续变化，当前仍在标注${side}的第一步。`):preview?t(`Preview only — explain ${side}’s move, then use “Save & switch” to start the other side’s turn.`,`这只是预览。请解释${side}这一步，再点击“保存并换边”，进入对方回合。`):t('Choose a suggested move below, explain it, then save and switch turns.','选择下方候选着法，填写解释，然后保存并换边。');
   $('fen-display').textContent=d.fen_before;
+  renderTurnFlow();
 }
 function squareClicked(square) {
-  if(preview||variationStep){preview=false;variationStep=null;selected=null;renderBoard();return;}
+  if(preview||variationStep){toast(t('This is a preview. Save & switch turns, or skip this annotation, to play the other side.','当前是预览，请先“保存并换边”或跳过本步标注，再走对方的棋。'));return;}
   const b=boardOf(), moves=b.moves({verbose:true}).filter(m=>m.from===selected&&m.to===square);
   if(moves.length){
     if(moves.length>1){$('promotion-options').replaceChildren();for(const m of moves){const button=document.createElement('button');button.textContent=t(...pieceNames[m.promotion]);button.onclick=()=>{$('promotion-dialog').close();changeTarget(moveUci(m),'move');preview=true;renderBoard();};$('promotion-options').append(button);}$('promotion-dialog').showModal();}
@@ -155,14 +180,15 @@ function renderRecords() {
     const row=document.createElement('article');row.className='record-item';row.dataset.id=d.id;row.dataset.kind=item.local?'draft':'server';
     const info=document.createElement('div'),title=document.createElement('span');title.className='record-title';
     let san=d.move_san;try{if(!san&&d.move_uci) san=applyUci(boardOf(d),d.move_uci).san;}catch{}
-    title.textContent=d.scope==='position'?t('Position','局面'):san||t('Move not selected','未选着法');
+    const turnBoard=boardOf(d),prefix=turnBoard.fen().split(' ')[5]+(turnBoard.turn()==='w'?'. ':'… ')+sideName(turnBoard.turn())+' · ';
+    title.textContent=prefix+(d.scope==='position'?t('Position','局面'):san||t('Move not selected','未选着法'));
     const meta=document.createElement('div');meta.className='record-meta'+(item.local?' draft-badge':'');meta.textContent=item.local?t('Local draft','本机草稿'):t(`Saved · version ${item.revision}`,`已保存 · 第 ${item.revision} 版`);
     const date=document.createElement('div');date.className='record-meta';date.textContent=(d.updated_at?new Date(d.updated_at).toLocaleString(lang==='zh'?'zh-CN':'en-GB'):'')+' · '+d.id.slice(0,8);
     info.append(title,meta,date);
     const body=document.createElement('div'),ex=document.createElement('div');ex.className='record-explanation';ex.textContent=d.explanation||t('Explanation not written yet.','尚未填写解释。');
     const chips=document.createElement('div');chips.className='record-tags';for(const c of tags){const chip=document.createElement('span');chip.textContent=name(c);chips.append(chip);}body.append(ex,chips);
     const open=document.createElement('button');open.className='secondary record-open';open.textContent=item.local?t('Resume draft','继续草稿'):t('Open record','查看记录');
-    open.onclick=()=>{if(item.local){workspace.current=d.id;preview=false;variationStep=null;persist();renderAll();loadEngine();window.scrollTo({top:0,behavior:'smooth'});}else loadRecord(d);};
+    open.onclick=()=>{if(item.local){workspace.current=d.id;flipped=boardOf().turn()==='b';preview=false;variationStep=null;persist();renderAll();loadEngine();window.scrollTo({top:0,behavior:'smooth'});}else loadRecord(d);};
     row.append(info,body,open);list.append(row);
   }
   if(!list.childElementCount){const p=document.createElement('div');p.className='empty-records';p.textContent=t(connected?'No matching annotations yet. Save your first one above.':'Open your invitation link to see saved records. Local drafts appear here.','暂无匹配记录。使用完整邀请链接可查看已保存标注，本机草稿也会显示在这里。');list.append(p);}
@@ -175,7 +201,7 @@ function loadRecord(d) {
     toast(t('Your unsynced edits were kept as a separate draft.','未同步的修改已保留为单独草稿。'));
   }
   if(d.engine_analysis)workspace.analyses[positionKey(d)]=d.engine_analysis;
-  workspace.entries[d.id]={document:inputDocument(d),revision:d.revision,dirty:false,receipt:true,server_document:d};workspace.current=d.id;preview=false;variationStep=null;selected=null;persist();renderAll();loadEngine();window.scrollTo({top:0,behavior:'smooth'});
+  workspace.entries[d.id]={document:inputDocument(d),revision:d.revision,dirty:false,receipt:true,server_document:d};workspace.current=d.id;flipped=boardOf().turn()==='b';preview=false;variationStep=null;selected=null;persist();renderAll();loadEngine();window.scrollTo({top:0,behavior:'smooth'});
 }
 function positionKey(d=doc()){return JSON.stringify([d.fen_before,d.context.initial_fen,d.context.moves_uci]);}
 function currentAnalysis(){return workspace.analyses[positionKey()]||null;}
@@ -211,7 +237,7 @@ function scoreText(score){return score.mate!==null?t(`Mate ${score.mate>0?'in ':
 function renderEngine(){
   if(!entry())return;
   const result=currentAnalysis(),key=positionKey(),pending=engineRequests.has(key);
-  $('engine-title').textContent=t('Next move suggestions','下一步建议');$('engine-refresh').disabled=pending;
+  $('engine-title').textContent=t(`${sideName(boardOf().turn())}’s next move`,`${sideName(boardOf().turn())}的下一步`);$('engine-refresh').disabled=pending;
   $('engine-candidates').replaceChildren();$('engine-pv').replaceChildren();
   $('engine-variation').hidden=!result?.candidates.length;
   if(pending){$('engine-status').textContent=t('Stockfish is searching this position…','Stockfish 正在分析当前局面……');return;}
@@ -275,13 +301,14 @@ async function api(path,body,raw=false) {
   return raw?response:response.json();
 }
 async function refreshRecords() { const data=await api('/annotations');records=data.records;connected=true;renderConnection();renderRecords();loadEngine();return data; }
-async function save() {
+async function save({advance=false}={}) {
   if(saving)return;
   const target=entry(),d=target.document;
   if(!d.explanation.trim()){message(t('Write your explanation before saving.','请先填写解释。'),'failed');return;}
   if(d.scope==='move'&&!d.move_uci){message(t('Choose the move you are explaining.','请先选择要解释的着法。'),'failed');return;}
   if(!connected){$('connection-dialog').showModal();return;}
   if(d.schema_version==='chess-annotation-2'&&!d.engine_analysis_id){message(t('Choose an engine suggestion to link your explanation to its analysis.','请先点击引擎候选着法，将解释与引擎分析绑定。'),'failed');return;}
+  if(advance&&!target.dirty&&target.receipt){advanceTurn();return;}
   const snapshot=structuredClone(d), snapshotText=JSON.stringify(snapshot);
   if(!target.pending||target.pending.text!==snapshotText)target.pending={text:snapshotText,body:{operation_id:uid(),expected_revision:target.revision,document:snapshot}};
   persist();saving=true;renderMeta();
@@ -292,7 +319,11 @@ async function save() {
     target.revision=receipt.document.revision;target.receipt=receipt.sha256;target.server_document=receipt.document;target.dirty=JSON.stringify(target.document)!==snapshotText;delete target.pending;
     persist();records=[receipt.document,...records.filter(r=>r.id!==d.id)];connected=true;
     saving=false;renderMeta();renderConnection();renderRecords();
-    toast(t('Annotation saved.','标注已保存。'));
+    if(advance&&workspace.current===d.id&&!target.dirty){
+      const side=sideName(boardOf().turn());advanceTurn();
+      toast(boardOf().isGameOver()?t(`${side}’s annotation saved. Game over.`,`${side}标注已保存，对局结束。`):t(`${side}’s annotation saved. Now annotate ${sideName(boardOf().turn())}’s move.`,`${side}标注已保存，现在请标注${sideName(boardOf().turn())}的着法。`));
+    }else if(advance&&workspace.current===d.id&&target.dirty){message(t('The earlier text was saved, but you edited it while saving. Review your changes and save again before switching turns.','先前内容已保存，但保存期间又有修改。请检查并再次保存后换边。'),'failed');}
+    else toast(t('Annotation saved.','标注已保存。'));
   }catch(error){saving=false;target.dirty=true;persist();renderMeta();message(error.message+' '+t('Not confirmed saved.','尚未确认保存成功。'),'failed');renderRecords();}
 }
 function download(blob,filename) {const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);}
@@ -343,6 +374,10 @@ async function importBackup(file) {
 }
 // Static interface translation. The source text remains available for switching back.
 const staticPairs = {
+  '① 选择当前一方的着法':'① Choose a move for the current side',
+  '② 勾选概念，填写解释':'② Select concepts and explain',
+  '③ 保存并换边，继续标注':'③ Save, switch sides and repeat',
+  '仅保存标注':'Save without switching',
   '观察局面 · 选择着法 · 解释理由':'POSITION · ENGINE MOVE · YOUR EXPLANATION',
   '为什么在这里走这一步？':'Why this move, in this position?',
   '查看引擎的下一步建议，选择一个着法，勾选相关概念并写下你的解释。':'Choose an engine suggestion, select the relevant concepts, and explain why the move makes sense.',
@@ -406,7 +441,7 @@ function bind() {
   $('copy-share').onclick=async()=>{try{await navigator.clipboard.writeText($('share-url').value);toast(t('Link copied.','链接已复制。'));}catch{$('share-url').select();toast(t('Select and copy the link above.','请选中并复制上方链接。'));}};
   $('target-move').onchange=e=>{changeTarget(e.target.value);preview=!!doc().move_uci;renderBoard();};
   $('scope').onchange=e=>changeTarget('',e.target.value);
-  $('advance').onclick=()=>{const context=structuredClone(doc().context);context.moves_uci.push(doc().move_uci);newDraft(context,doc().source);};
+  $('advance').onclick=advanceTurn;
   $('undo').onclick=()=>{const context=structuredClone(doc().context);context.moves_uci.pop();newDraft(context,doc().source);};
   $('fresh').onclick=()=>newDraft(doc().context,doc().source,doc().move_uci,doc().scope);
   $('explanation').oninput=e=>{doc().explanation=e.target.value;changed();};
@@ -414,7 +449,7 @@ function bind() {
   $('load-sample').onclick=()=>{const key=$('sample').value,s=samples[key];newDraft({initial_fen:s.fen,moves_uci:s.moves},'sample:'+key,s.target);};
   $('load-fen').onclick=()=>{try{const b=new Chess($('fen-input').value.trim());newDraft({initial_fen:b.fen(),moves_uci:[]},'FEN');}catch{toast(t('Invalid FEN. Your current annotation has not changed.','FEN 不合法，当前标注未改变。'));}};
   $('load-pgn').onclick=()=>{try{const b=new Chess();b.loadPgn($('pgn-input').value);const h=b.history({verbose:true});newDraft({initial_fen:h[0]?.before||b.fen(),moves_uci:h.map(moveUci)},'PGN');}catch{toast(t('Could not read this PGN. Your annotation has not changed.','无法读取该 PGN，当前标注未改变。'));}};
-  $('save').onclick=save;$('export-draft').onclick=()=>exportLocal(true);$('export-local').onclick=()=>exportLocal(false);
+  $('save').onclick=()=>save();$('save-next').onclick=()=>save({advance:true});$('export-draft').onclick=()=>exportLocal(true);$('export-local').onclick=()=>exportLocal(false);
   for(const format of ['json','jsonl','csv'])$('export-'+format).onclick=()=>exportServer(format);
   $('import-backup').onchange=async e=>{try{await importBackup(e.target.files[0]);}catch(error){toast(error.message);}finally{e.target.value='';}};
   $('record-search').oninput=renderRecords;$('view-records').onclick=()=>$('records-panel').scrollIntoView({behavior:'smooth'});
@@ -433,7 +468,7 @@ async function init() {
   bind();
   const params=new URLSearchParams(location.search),fen=params.get('fen');
   if(fen){try{const b=new Chess(fen),move=params.get('move')||'';if(move)applyUci(new Chess(fen),move);newDraft({initial_fen:b.fen(),moves_uci:[]},'analysis-demo',move);}catch{toast(t('The linked position is invalid.','链接中的局面不合法。'));}}
-  if(!entry()||(!meaningful(entry())&&doc().schema_version==='chess-annotation-1'))newDraft({initial_fen:initial,moves_uci:[]},'sample:initial');else renderAll();
+  if(!entry()||(!meaningful(entry())&&doc().schema_version==='chess-annotation-1'))newDraft({initial_fen:initial,moves_uci:[]},'sample:initial');else {flipped=boardOf().turn()==='b';renderAll();}
   const hash=new URLSearchParams(location.hash.slice(1)),invite=hash.get('access');if(invite){history.replaceState(null,'',location.pathname+location.search);try{const result=await api('/login',{code:invite});localStorage.setItem(TOKEN,result.token);}catch(error){toast(error.message);}}
   if(localStorage.getItem(TOKEN))try{await refreshRecords();}catch(error){connected=false;renderConnection();toast(error.message);}else renderConnection();
 }
